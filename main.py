@@ -14,7 +14,7 @@ def get_features():
 
 def train_loop(g, iters, save=None):
     avgs = []
-    fps = []
+    places_stats = []
     ratios = []
     for i in range(iters):
         print("iter %d" % i)
@@ -22,9 +22,13 @@ def train_loop(g, iters, save=None):
         ratio = g.true_scores[0] / sum(g.true_scores)
         print(avg)
         print(ratio)
+        argsorted = np.argsort(g.true_scores)
+        places = argsorted.tolist()
+        places.reverse()
+        place = places.index(0)
+        places_stats.append(place)
         ratios.append(ratio)
         avgs.append(avg)
-        fps.append(g.first_picks)
         if g.epsilon > 0.001:
             g.epsilon /= 1.1
 
@@ -34,9 +38,12 @@ def train_loop(g, iters, save=None):
     plt.plot(range(iters), ratios)
     plt.show()
 
+    plt.plot(range(iters), places_stats)
+    plt.show()
+
     if save:
         g.agent.model.save(save)
-    np.save("fpstats", fps)
+    np.save("places", places_stats)
     np.save("avgs", avgs)
     np.save("ratios", ratios)
 
@@ -53,6 +60,8 @@ if __name__ == '__main__':
     parser.add_argument('-w','--watch', type=bool, required=False)
     parser.add_argument('-i', '--iters', type=int, required=False)
     parser.add_argument('-s', '--save', type=str, required=False)
+    parser.add_argument('-l', '--load', type=str, required=False)
+
 
     io_args = parser.parse_args()
     players = io_args.players
@@ -62,6 +71,8 @@ if __name__ == '__main__':
     g = Game(players, features)
 
     if not io_args.watch:
+        if io_args.load:
+            g.agent.model = load_model(io_args.load)
         train_loop(g, io_args.iters, io_args.save)
     else:
         watch(g)

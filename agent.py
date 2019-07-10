@@ -5,6 +5,7 @@ from keras.layers.core import Dense, Dropout
 import random
 import numpy as np
 import feature_extractors.extractor_helpers as exh
+import gch
 
 class agent:
     def __init__(self, game):
@@ -16,10 +17,8 @@ class agent:
         self.targets = []
         self.gamma = 0.9
         self.learning_rate = 0.01
+        self.output_size = gch.output_size
         self.model = self.create_model()
-       
-    def get_output_size(self):
-        return int(self.shz + self.shz * (self.shz - 1) / 2)
 
     def create_model(self, weights=None):
         model = Sequential()
@@ -29,7 +28,7 @@ class agent:
         model.add(Dropout(0.15))
         model.add(Dense(output_dim=120, activation='relu'))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=self.get_output_size(), activation='linear'))
+        model.add(Dense(output_dim=self.output_size, activation='linear'))
         opt = Adam(self.learning_rate)
         model.compile(loss='mse', optimizer=opt)
 
@@ -54,7 +53,7 @@ class agent:
 
     def replay(self, states, targets):
         x = np.array(states).reshape((len(states), self.input_size))
-        y = np.array(targets).reshape(len(targets), self.get_output_size())
+        y = np.array(targets).reshape(len(targets), self.output_size)
 
         bsize = min(len(states), 100)
         c = np.random.choice(len(states), bsize, replace=False)
