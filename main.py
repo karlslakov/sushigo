@@ -1,6 +1,11 @@
 from game import Game
 import argparse
-from feature_extractors import player_hand_features, game_metadata_features, player_selected_features
+from feature_extractors import ( 
+    player_hand_features,
+    game_metadata_features, 
+    player_selected_features, 
+    strategy_helper_features,
+)
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import load_model
@@ -10,12 +15,14 @@ def get_features():
         player_hand_features.player_hand_features(),
         game_metadata_features.game_metadata_features(),
         player_selected_features.player_selected_features(),
+        strategy_helper_features.strategy_helper_features(),
     ]
 
 def train_loop(g, iters, save=None):
     avgs = []
     fps = []
     ratios = []
+    g.epsilon = 0.6
     for i in range(iters):
         print("iter %d" % i)
         avg, max, min = g.start_sim_game()
@@ -25,14 +32,14 @@ def train_loop(g, iters, save=None):
         ratios.append(ratio)
         avgs.append(avg)
         fps.append(g.first_picks)
-        if g.epsilon > 0.001:
-            g.epsilon /= 1.1
+        if g.epsilon > 0.01:
+            g.epsilon -= 0.0001
 
     plt.plot(range(iters), avgs)
-    plt.show()
+    # plt.show()
 
     plt.plot(range(iters), ratios)
-    plt.show()
+    # plt.show()
 
     if save:
         g.agent.model.save(save)
@@ -41,9 +48,6 @@ def train_loop(g, iters, save=None):
     np.save("ratios", ratios)
 
 def watch(game):
-    g.agent.model = load_model("newmodel.h5")
-    print(g.agent.model.predict(np.random.rand(g.agent.input_size).reshape((1, g.agent.input_size))))
-    print(g.agent.model.predict(np.random.rand(g.agent.input_size).reshape((1, g.agent.input_size))))
     g.epsilon = 0
     g.start_sim_game(watch=True)
 
@@ -53,6 +57,7 @@ if __name__ == '__main__':
     parser.add_argument('-w','--watch', type=bool, required=False)
     parser.add_argument('-i', '--iters', type=int, required=False)
     parser.add_argument('-s', '--save', type=str, required=False)
+    parser.add_argument('-l', '--load', type=str, required=False)
 
     io_args = parser.parse_args()
     players = io_args.players
@@ -60,6 +65,8 @@ if __name__ == '__main__':
     features = get_features()
 
     g = Game(players, features)
+    if io_args.load:
+        g.agent.model = load_model(io_args.load)
 
     if not io_args.watch:
         train_loop(g, io_args.iters, io_args.save)
