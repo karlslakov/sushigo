@@ -1,21 +1,50 @@
 from game import Game
 import argparse
-from feature_extractors import player_hand_features, game_metadata_features, player_selected_features
+from feature_extractors import ( 
+    player_hand_features,
+    game_metadata_features, 
+    player_selected_features, 
+    strategy_helper_features,
+)
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import load_model
+import signal
+import sys
+
+
 
 def get_features():
     return [
         player_hand_features.player_hand_features(),
         game_metadata_features.game_metadata_features(),
         player_selected_features.player_selected_features(),
+        strategy_helper_features.strategy_helper_features(),
     ]
+
+def end_loop(iters, avgs, ratios, g, save):
+    print("finished model training, saving stats")
+    plt.plot(range(iters), avgs)
+    plt.show()
+
+    plt.plot(range(iters), ratios)
+    plt.show()
+
+    if save:
+        g.agent.model.save(save)
+    np.save("avgs", avgs)
+    np.save("ratios", ratios)
 
 def train_loop(g, iters, save=None):
     avgs = []
     places_stats = []
     ratios = []
+    g.epsilon = 0.6
+    def save_on_exit(sig, frame):
+        end_loop(len(avgs), avgs, ratios, g, save)
+        sys.exit(0)
+    signal.signal(signal.SIGINT, save_on_exit)
+
     for i in range(iters):
         print("iter %d" % i)
         avg, max, min = g.start_sim_game()
@@ -29,28 +58,14 @@ def train_loop(g, iters, save=None):
         places_stats.append(place)
         ratios.append(ratio)
         avgs.append(avg)
-        if g.epsilon > 0.001:
-            g.epsilon /= 1.1
+        fps.append(g.first_picks)
+        if g.epsilon > 0.01:
+            g.epsilon -= 0.0005
 
-    plt.plot(range(iters), avgs)
-    plt.show()
+    end_loop(iters, avgs, ratios, g, save)
 
-    plt.plot(range(iters), ratios)
-    plt.show()
-
-    plt.plot(range(iters), places_stats)
-    plt.show()
-
-    if save:
-        g.agent.model.save(save)
-    np.save("places", places_stats)
-    np.save("avgs", avgs)
-    np.save("ratios", ratios)
 
 def watch(game):
-    g.agent.model = load_model("newmodel.h5")
-    print(g.agent.model.predict(np.random.rand(g.agent.input_size).reshape((1, g.agent.input_size))))
-    print(g.agent.model.predict(np.random.rand(g.agent.input_size).reshape((1, g.agent.input_size))))
     g.epsilon = 0
     g.start_sim_game(watch=True)
 
@@ -69,6 +84,8 @@ if __name__ == '__main__':
     features = get_features()
 
     g = Game(players, features)
+    if io_args.load:
+        g.agent.model = load_model(io_args.load)
 
     if not io_args.watch:
         if io_args.load:

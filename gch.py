@@ -105,3 +105,16 @@ def calculate_final_score(selected, final_round):
 
             bonus_scores[p_losers] -= 6 // num_losers 
     return round_scores + bonus_scores
+
+def get_reward(true_scores, temp_scores, game_over, player):
+    reward = 0
+    if game_over:
+        # technically "noisy" cause of ties but im sure big boy can handle it
+        argsorted = np.argsort(true_scores)
+        places = argsorted.tolist()
+        place = places.index(player)
+        reward = true_scores[player] + 15 * place
+    else:
+        # implement round based punishment for losers?
+        reward = temp_scores[player]
+    return reward
