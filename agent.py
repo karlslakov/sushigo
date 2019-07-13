@@ -24,11 +24,8 @@ class agent:
     def create_model(self, weights=None):
         model = Sequential()
         model.add(Dense(output_dim=120, activation='relu', input_dim=self.input_size))
-        model.add(Dropout(0.15))
         model.add(Dense(output_dim=120, activation='relu'))
-        model.add(Dropout(0.15))
         model.add(Dense(output_dim=120, activation='relu'))
-        model.add(Dropout(0.15))
         model.add(Dense(output_dim=self.get_output_size(), activation='linear'))
         opt = Adam(self.learning_rate)
         model.compile(loss='mse', optimizer=opt)
@@ -43,6 +40,9 @@ class agent:
     def remember(self, state, target_f):
         self.states.append(state)
         self.targets.append(target_f)
+        if len(self.states) > 50000:
+            self.states.pop(0)
+            self.targets.pop(0)
 
     def step(self, state, action, reward, next_state, done):
         target = reward

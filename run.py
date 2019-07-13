@@ -9,6 +9,10 @@ from feature_extractors import (
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import load_model
+import signal
+import sys
+
+
 
 def get_features():
     return [
@@ -18,11 +22,29 @@ def get_features():
         strategy_helper_features.strategy_helper_features(),
     ]
 
+def end_loop(iters, avgs, ratios, g, save):
+    print("finished model training, saving stats")
+    plt.plot(range(iters), avgs)
+    plt.show()
+
+    plt.plot(range(iters), ratios)
+    plt.show()
+
+    if save:
+        g.agent.model.save(save)
+    np.save("avgs", avgs)
+    np.save("ratios", ratios)
+
 def train_loop(g, iters, save=None):
     avgs = []
     fps = []
     ratios = []
     g.epsilon = 0.6
+    def save_on_exit(sig, frame):
+        end_loop(len(avgs), avgs, ratios, g, save)
+        sys.exit(0)
+    signal.signal(signal.SIGINT, save_on_exit)
+
     for i in range(iters):
         print("iter %d" % i)
         avg, max, min = g.start_sim_game()
@@ -33,19 +55,9 @@ def train_loop(g, iters, save=None):
         avgs.append(avg)
         fps.append(g.first_picks)
         if g.epsilon > 0.01:
-            g.epsilon -= 0.0001
+            g.epsilon -= 0.0005
 
-    plt.plot(range(iters), avgs)
-    # plt.show()
-
-    plt.plot(range(iters), ratios)
-    # plt.show()
-
-    if save:
-        g.agent.model.save(save)
-    np.save("fpstats", fps)
-    np.save("avgs", avgs)
-    np.save("ratios", ratios)
+    end_loop(iters, avgs, ratios, g, save)
 
 def watch(game):
     g.epsilon = 0
