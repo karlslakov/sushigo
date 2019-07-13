@@ -74,8 +74,9 @@ class Game:
         print(self.true_scores)
         self.agent.replay(self.agent.memory)
         self.watch_wait(watch)
-        
+
         return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
+
 
     def get_output_for_player(self, player):
         if self.player_controllers[player] == 'agent':
@@ -154,6 +155,7 @@ class Game:
                     reward, 
                     new_features,
                     self.is_game_over())
+                self.agent.replay(self.agent.states, self.agent.targets)
                 
                 self.curr_features[player] = new_features
             
