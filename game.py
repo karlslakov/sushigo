@@ -72,24 +72,10 @@ class Game:
 
         print("--- stats ---")
         print(self.true_scores)
+        self.agent.replay(self.agent.memory)
         self.watch_wait(watch)
-
-        self.agent.replay(self.agent.states, self.agent.targets)
+        
         return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
-
-
-    def get_reward(self, player):
-        reward = 0
-        if self.is_game_over():
-            # technically "noisy" cause of ties but im sure big boy can handle it
-            argsorted = np.argsort(self.true_scores)
-            places = argsorted.tolist()            
-            place = places.index(player)
-            reward = self.true_scores[player] + 30 * place
-        else:
-            # implement round based punishment for losers?
-            reward = self.temp_scores[player]
-        return reward
 
     def get_output_for_player(self, player):
         if self.player_controllers[player] == 'agent':
@@ -161,7 +147,7 @@ class Game:
                     self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.player_selected[player])
                     self.deltas[player] = self.temp_scores[player] - old
                 new_features = exh.extract_features(self.feature_extractors, player, self)
-                reward = self.get_reward(player)
+                reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
                 self.agent.step(
                     self.curr_features[player], 
                     self.outputs[player],

@@ -1,13 +1,12 @@
 import numpy as np
 from constants import maki_counts, nigiri_scores
 
-
 def remove_invalid(output, shz, chandsize, has_chopsticks):
     for i in range(len(output)):
         first, chopsticks, second = get_action(i, shz)
         if first >= chandsize or second >= chandsize or chopsticks and not has_chopsticks:
             output[i] = -1
-    return output    
+    return output
 
 def parse_output(output, shz, chandsize, selected):
     output = remove_invalid(output, shz, chandsize, 'c' in selected)
@@ -15,6 +14,7 @@ def parse_output(output, shz, chandsize, selected):
     return get_action(index, shz)
 
 def get_action(index, shz):
+    # TODO memoize these these and put in a map
     if index < shz:
         return index, False, 0
     first = -1
@@ -91,3 +91,16 @@ def calculate_final_score(selected, final_round):
 
             bonus_scores[p_losers] -= 6 // num_losers 
     return round_scores + bonus_scores
+
+def get_reward(true_scores, temp_scores, game_over, player):
+    reward = 0
+    if game_over:
+        # technically "noisy" cause of ties but im sure big boy can handle it
+        argsorted = np.argsort(true_scores)
+        places = argsorted.tolist()
+        place = places.index(player)
+        reward = true_scores[player] + 15 * place
+    else:
+        # implement round based punishment for losers?
+        reward = temp_scores[player]
+    return reward
