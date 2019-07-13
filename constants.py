@@ -6,17 +6,9 @@
 # w          wasabi
 # c          chopsticks
 card_counts = {
-    "m1" : 10,
-    "m2" : 5,
-    "m3" : 5,
-    "s"  : 10,
-    "t"  : 20,
-    "p"  : 10,
-    "n1" : 10,
-    "n2" : 8,
-    "n3" : 5,
-    "w"  : 8,
-    "c"  : 5
+    "n1" : 20,
+    "n2" : 18,
+    "n3" : 16
 }
 
 nigiri_scores = {

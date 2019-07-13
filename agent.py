@@ -19,7 +19,7 @@ class agent:
         self.model = self.create_model()
        
     def get_output_size(self):
-        return int(self.shz + self.shz * (self.shz - 1) / 2)
+        return int(self.shz)
 
     def create_model(self, weights=None):
         model = Sequential()

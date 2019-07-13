@@ -1,28 +1,17 @@
 import numpy as np
 from constants import maki_counts, nigiri_scores
 
-def remove_invalid(output, shz, chandsize, has_chopsticks):
-    for i in range(len(output)):
-        first, chopsticks, second = get_action(i, shz)
-        if first >= chandsize or second >= chandsize or chopsticks and not has_chopsticks:
-            output[i] = -1
+def remove_invalid(output, shz, chandsize):
+    output[chandsize:] = -1
     return output
 
 def parse_output(output, shz, chandsize, selected):
-    output = remove_invalid(output, shz, chandsize, 'c' in selected)
+    output = remove_invalid(output, shz, chandsize)
     index = np.argmax(output)
     return get_action(index, shz)
 
 def get_action(index, shz):
-    # TODO memoize these these and put in a map
-    if index < shz:
-        return index, False, 0
-    first = -1
-    while index >= shz:
-        index = index - shz
-        shz -= 1
-        first += 1
-    return first, True, first+index+1
+    return index
 
 
 def get_clockwise_player(p, nump):
@@ -92,7 +81,7 @@ def calculate_final_score(selected, final_round):
             bonus_scores[p_losers] -= 6 // num_losers 
     return round_scores + bonus_scores
 
-def get_reward(true_scores, temp_scores, game_over, player):
+def get_reward(true_scores, temp_scores, deltas, game_over, player):
     reward = 0
     if game_over:
         # technically "noisy" cause of ties but im sure big boy can handle it

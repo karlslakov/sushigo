@@ -55,18 +55,6 @@ class Game:
         self.watch_print(watch, "end round 0")
         self.watch_print(watch, self.true_scores)
         self.watch_print(watch, self.player_selected)
-        self.watch_wait(watch)
-        self.round = 1
-        self.watch_print(watch, "starting round 1")
-        self.play_sim_round(watch)
-        self.watch_print(watch, "end round 1")
-        self.watch_print(watch, self.true_scores)
-        self.watch_print(watch, self.player_selected)
-        self.watch_wait(watch)
-        self.round = 2
-        self.watch_print(watch, "starting final round")
-        self.play_sim_round(watch)
-        self.watch_print(watch, "end final round")
         self.watch_print(watch, self.true_scores)
         self.watch_print(watch, self.player_selected)
 
@@ -88,21 +76,15 @@ class Game:
             self.outputs[player] = np.random.rand(self.agent.get_output_size())
     
     def execute_action(self, action, player):
-        first, chopsticks, second = action
-        self.player_selected[player].append(self.curr_round_hands[player][first])
-        if chopsticks:
-            self.player_selected[player].append(self.curr_round_hands[player][second])
-            self.curr_round_hands[player] = list(np.delete(np.array(self.curr_round_hands[player]), (first, second)))
-            self.curr_round_hands[player].append('c')
-            self.player_selected[player].remove('c')
-        else:
-            del self.curr_round_hands[player][first]
+        index = action
+        self.player_selected[player].append(self.curr_round_hands[player][index])
+        del self.curr_round_hands[player][index]
 
     def is_round_over(self):
         return self.in_round_card == self.shz - 1
 
     def is_game_over(self):
-        return self.is_round_over() and self.round >= 2
+        return self.is_round_over() # and self.round >= 2
 
     def play_sim_round(self, watch=False):
         offset = self.round * self.players
@@ -130,8 +112,6 @@ class Game:
                 self.get_output_for_player(player)
                 self.watch_print(watch, self.outputs[player])
                 self.actions[player] = gch.parse_output(self.outputs[player], self.shz, self.shz - t, self.player_selected[player])
-                if t == 0:
-                    self.first_picks += exh.to_onehot_embedding(self.curr_round_hands[player][self.actions[player][0]])
                 self.watch_print(watch, "action: {}".format(self.actions[player]))
                 self.watch_wait(watch)
                 self.execute_action(self.actions[player], player)
@@ -148,7 +128,7 @@ class Game:
                     self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.player_selected[player])
                     self.deltas[player] = self.temp_scores[player] - old
                 new_features = exh.extract_features(self.feature_extractors, player, self)
-                reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
+                reward = gch.get_reward(self.true_scores, self.temp_scores, self.deltas, self.is_game_over(), player)
                 self.agent.step(
                     self.curr_features[player], 
                     self.outputs[player],

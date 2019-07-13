@@ -77,6 +77,9 @@ if __name__ == '__main__':
     features = get_features()
 
     g = Game(players, features)
+    g.player_controllers[1] = "rando"
+    g.player_controllers[2] = "rando"
+    g.player_controllers[3] = "rando"
     if io_args.load:
         g.agent.model = load_model(io_args.load)
 
