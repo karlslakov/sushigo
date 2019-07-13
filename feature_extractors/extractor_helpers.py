@@ -18,6 +18,12 @@ def to_onehot_embedding(card):
     onehot[card_to_int[card]] = 1
     return onehot
 
+def to_counts(cards):
+    counts = np.zeros(onehot_len)
+    for c in cards:
+        counts += to_onehot_embedding(c)
+    return counts
+
 def from_onehot_embedding(onehot):
     return int_to_card[np.argmax(onehot)]
 

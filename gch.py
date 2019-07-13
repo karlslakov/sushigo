@@ -1,29 +1,43 @@
 import numpy as np
 from constants import maki_counts, nigiri_scores
+from feature_extractors.extractor_helpers import onehot_len, to_int
 
-def remove_invalid(output, shz, chandsize, has_chopsticks):
+output_size = int(onehot_len + onehot_len * (onehot_len + 1) / 2)
+action_map = []
+
+def calc_action(index):
+    if index < onehot_len:
+        return index, False, -1
+    x = onehot_len
+    first = 0
+    index -= x
+    while index >= x:
+        index -= x
+        x -= 1
+        first += 1
+    return (first, True, first+index)
+
+for i in range(output_size):
+    action_map.append(calc_action(i))
+
+def remove_invalid(output, chand, has_chopsticks):
     for i in range(len(output)):
-        first, chopsticks, second = get_action(i, shz)
-        if first >= chandsize or second >= chandsize or chopsticks and not has_chopsticks:
-            output[i] = -1
+        first, chopsticks, second = get_action(i)
+        if not chopsticks and chand[first] > 0:
+            pass
+        elif chopsticks and has_chopsticks and ((second == first and chand[first] > 1) or (chand[first] > 0 and chand[second] > 0)):
+            pass
+        else:
+            output[i] = float('-inf')
     return output
 
-def parse_output(output, shz, chandsize, selected):
-    output = remove_invalid(output, shz, chandsize, 'c' in selected)
+def parse_output(output, chand, selected):
+    output = remove_invalid(output, chand, selected[to_int('c')] > 0)
     index = np.argmax(output)
-    return get_action(index, shz)
+    return get_action(index)
 
-def get_action(index, shz):
-    # TODO memoize these these and put in a map
-    if index < shz:
-        return index, False, 0
-    first = -1
-    while index >= shz:
-        index = index - shz
-        shz -= 1
-        first += 1
-    return first, True, first+index+1
-
+def get_action(index):
+    return action_map[index]
 
 def get_clockwise_player(p, nump):
     return (p + 1) % nump

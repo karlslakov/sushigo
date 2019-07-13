@@ -37,7 +37,7 @@ def end_loop(iters, avgs, ratios, g, save):
 
 def train_loop(g, iters, save=None):
     avgs = []
-    fps = []
+    places_stats = []
     ratios = []
     g.epsilon = 0.6
     def save_on_exit(sig, frame):
@@ -51,13 +51,18 @@ def train_loop(g, iters, save=None):
         ratio = g.true_scores[0] / sum(g.true_scores)
         print(avg)
         print(ratio)
+        argsorted = np.argsort(g.true_scores)
+        places = argsorted.tolist()
+        places.reverse()
+        place = places.index(0)
+        places_stats.append(place)
         ratios.append(ratio)
         avgs.append(avg)
-        fps.append(g.first_picks)
         if g.epsilon > 0.01:
             g.epsilon -= 0.0005
 
     end_loop(iters, avgs, ratios, g, save)
+
 
 def watch(game):
     g.epsilon = 0
@@ -71,6 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--save', type=str, required=False)
     parser.add_argument('-l', '--load', type=str, required=False)
 
+
     io_args = parser.parse_args()
     players = io_args.players
 
@@ -81,6 +87,8 @@ if __name__ == '__main__':
         g.agent.model = load_model(io_args.load)
 
     if not io_args.watch:
+        if io_args.load:
+            g.agent.model = load_model(io_args.load)
         train_loop(g, io_args.iters, io_args.save)
     else:
         watch(g)

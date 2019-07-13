@@ -40,12 +40,13 @@ class Game:
     def start_sim_game(self, watch=False):
         print("Starting sim game with players = %d" % self.players)
         self.deck = self.get_base_deck()
-        self.first_picks = np.zeros(exh.onehot_len)
         random.shuffle(self.deck)
 
         self.player_selected = []
+        self.selection_ordered = []
         for _ in range(self.players):
-            self.player_selected.append([])
+            self.player_selected.append(np.zeros(exh.onehot_len))
+            self.selection_ordered.append([])
         
         self.in_round_card = 0
         self.true_scores = np.zeros(self.players)
@@ -81,22 +82,24 @@ class Game:
     def get_output_for_player(self, player):
         if self.player_controllers[player] == 'agent':
             if random.random() < self.epsilon:
-                self.outputs[player] = np.random.rand(self.agent.get_output_size())
+                self.outputs[player] = np.random.rand(self.agent.output_size)
             else:
                 self.outputs[player] = self.agent.predict(self.curr_features[player])
         else:
-            self.outputs[player] = np.random.rand(self.agent.get_output_size())
+            self.outputs[player] = np.random.rand(self.agent.output_size)
     
     def execute_action(self, action, player):
         first, chopsticks, second = action
-        self.player_selected[player].append(self.curr_round_hands[player][first])
+        self.player_selected[player][first] += 1
+        self.curr_round_hands[player][first] -= 1
+        self.selection_ordered[player].append(exh.to_card(first))
         if chopsticks:
-            self.player_selected[player].append(self.curr_round_hands[player][second])
-            self.curr_round_hands[player] = list(np.delete(np.array(self.curr_round_hands[player]), (first, second)))
-            self.curr_round_hands[player].append('c')
-            self.player_selected[player].remove('c')
-        else:
-            del self.curr_round_hands[player][first]
+            self.player_selected[player][second] += 1
+            self.curr_round_hands[player][second] -= 1
+            self.selection_ordered[player].append(exh.to_card(second))
+            self.curr_round_hands[player][exh.to_int('c')] += 1
+            self.player_selected[player][exh.to_int('c')] -= 1
+            # no need to remove from ordered thing, chopsticks dont matter for scoring
 
     def is_round_over(self):
         return self.in_round_card == self.shz - 1
@@ -114,7 +117,8 @@ class Game:
         self.temp_scores = np.array(self.true_scores)
 
         for i in range(self.players):
-            self.curr_round_hands.append(self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz])
+            hand = self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz]
+            self.curr_round_hands.append(exh.to_counts(hand))
         
         
         for player in range(self.players):
@@ -129,15 +133,13 @@ class Game:
                 self.watch_print(watch, self.curr_features[player])
                 self.get_output_for_player(player)
                 self.watch_print(watch, self.outputs[player])
-                self.actions[player] = gch.parse_output(self.outputs[player], self.shz, self.shz - t, self.player_selected[player])
-                if t == 0:
-                    self.first_picks += exh.to_onehot_embedding(self.curr_round_hands[player][self.actions[player][0]])
+                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player])
                 self.watch_print(watch, "action: {}".format(self.actions[player]))
                 self.watch_wait(watch)
                 self.execute_action(self.actions[player], player)
 
             if self.is_round_over():
-                scores = gch.calculate_final_score(self.player_selected, self.is_game_over())
+                scores = gch.calculate_final_score(self.selection_ordered, self.is_game_over())
                 self.deltas = scores
                 self.true_scores += scores 
                 self.temp_scores = self.true_scores
@@ -145,7 +147,7 @@ class Game:
             for player in range(self.players):
                 if not self.is_round_over():
                     old = self.temp_scores[player]                
-                    self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.player_selected[player])
+                    self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.selection_ordered[player])
                     self.deltas[player] = self.temp_scores[player] - old
                 new_features = exh.extract_features(self.feature_extractors, player, self)
                 reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
@@ -166,7 +168,10 @@ class Game:
             self.curr_round_hands[-1] = splayer_hand
         
         for p in range(self.players):
-            self.player_selected[p] = [x for x in self.player_selected[p] if x == 'p']
+            puddings = self.player_selected[p][exh.to_int('p')]
+            self.player_selected[p] = np.zeros(exh.onehot_len)
+            self.player_selected[p][exh.to_int('p')] = puddings
+            self.selection_ordered[p] = [x for x in self.selection_ordered[p] if x == 'p']
 
 
     def start_irl_game(self):
