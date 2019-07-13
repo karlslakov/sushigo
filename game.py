@@ -157,7 +157,6 @@ class Game:
                     reward, 
                     new_features,
                     self.is_game_over())
-                self.agent.replay(self.agent.states, self.agent.targets)
                 
                 self.curr_features[player] = new_features
             
