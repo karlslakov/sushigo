@@ -13,6 +13,9 @@ base_deck = []
 class Game:
     def __init__(self, players, feature_extractors):
         self.players = int(players)
+        self.player_controllers = []
+        for _ in range(players):
+            self.player_controllers.append('agent')
         self.shz = 12 - self.players
         self.feature_extractors = feature_extractors
         self.agent = agent(self)
@@ -70,25 +73,19 @@ class Game:
 
         print("--- stats ---")
         print(self.true_scores)
+        self.agent.replay(self.agent.memory)
         self.watch_wait(watch)
-
-        self.agent.replay(self.agent.states, self.agent.targets)
+        
         return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
 
-
-    def get_reward(self, player):
-        reward = 0
-        if self.is_game_over():
-            # technically "noisy" cause of ties but im sure big boy can handle it
-            argsorted = np.argsort(self.true_scores)
-            places = argsorted.tolist()
-            places.reverse()
-            place = places.index(player)
-            reward = self.true_scores[player] + 30 - place * (60 // self.players)
+    def get_output_for_player(self, player):
+        if self.player_controllers[player] == 'agent':
+            if random.random() < self.epsilon:
+                self.outputs[player] = np.random.rand(self.agent.output_size)
+            else:
+                self.outputs[player] = self.agent.predict(self.curr_features[player])
         else:
-            # implement round based punishment for losers?
-            reward = self.temp_scores[player]
-        return reward
+            self.outputs[player] = np.random.rand(self.agent.output_size)
     
     def execute_action(self, action, player):
         first, chopsticks, second = action
@@ -133,12 +130,7 @@ class Game:
             for player in range(self.players):
                 self.watch_print(watch, "player {} sees {}".format(player, self.curr_round_hands[player]))
                 self.watch_print(watch, self.curr_features[player])
-                if player == 0:
-                    self.outputs[player] = np.random.rand(self.agent.output_size)
-                elif random.random() < self.epsilon:
-                    self.outputs[player] = np.random.rand(self.agent.output_size)
-                else:
-                    self.outputs[player] = self.agent.predict(self.curr_features[player]) # 
+                self.get_output_for_player(player)
                 self.watch_print(watch, self.outputs[player])
                 self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player])
                 self.watch_print(watch, "action: {}".format(self.actions[player]))
@@ -157,7 +149,7 @@ class Game:
                     self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.selection_ordered[player])
                     self.deltas[player] = self.temp_scores[player] - old
                 new_features = exh.extract_features(self.feature_extractors, player, self)
-                reward = self.get_reward(player)
+                reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
                 self.agent.step(
                     self.curr_features[player], 
                     self.outputs[player],
