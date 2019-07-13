@@ -12,8 +12,7 @@ class agent:
         self.shz = game.shz
         self.feature_extractors = game.feature_extractors
         self.input_size = exh.get_input_size(self.feature_extractors, game) 
-        self.states = []
-        self.targets = []
+        self.memory = []
         self.gamma = 0.9
         self.learning_rate = 0.01
         self.model = self.create_model()
@@ -37,28 +36,27 @@ class agent:
     def predict(self, features):
         return self.model.predict(features.reshape((1, self.input_size)))[0]
 
-    def remember(self, state, target_f):
-        self.states.append(state)
-        self.targets.append(target_f)
-        if len(self.states) > 50000:
-            self.states.pop(0)
-            self.targets.pop(0)
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
+        if len(self.memory) > 50000:
+            self.memory.pop(0)
 
     def step(self, state, action, reward, next_state, done):
+        self.remember(state, action, reward, next_state, done)
+        self.train_once(state, action, reward, next_state, done)
+
+    def replay(self, memory):
+        replay = memory
+        if len(memory) > 1000:
+            replay = random.sample(memory, 1000)
+        
+        for state, action, reward, next_state, done in replay:
+            self.train_once(state, action, reward, next_state, done)
+    
+    def train_once(self, state, action, reward, next_state, done):        
         target = reward
         if not done:
             target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, self.input_size)))[0])
         target_f = self.model.predict(state.reshape((1, self.input_size)))
         target_f[0][np.argmax(action)] = target
-        self.remember(state, target_f.flatten())
-
-    def replay(self, states, targets):
-        x = np.array(states).reshape((len(states), self.input_size))
-        y = np.array(targets).reshape(len(targets), self.get_output_size())
-
-        bsize = min(len(states), 100)
-        c = np.random.choice(len(states), bsize, replace=False)
-        x = x[c]
-        y = y[c]
-
-        self.model.fit(x, y, epochs=1, verbose=0)
+        self.model.fit(state.reshape((1, self.input_size)), target_f, epochs=1, verbose=0)

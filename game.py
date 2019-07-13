@@ -60,12 +60,11 @@ class Game:
 
         print("--- stats ---")
         print(self.true_scores)
+        self.agent.replay(self.agent.memory)
         self.watch_wait(watch)
 
         return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
 
-
-    
     def get_output_for_player(self, player):
         if self.player_controllers[player] == 'agent':
             if random.random() < self.epsilon:
@@ -128,14 +127,13 @@ class Game:
                     self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.player_selected[player])
                     self.deltas[player] = self.temp_scores[player] - old
                 new_features = exh.extract_features(self.feature_extractors, player, self)
-                reward = gch.get_reward(self.true_scores, self.temp_scores, self.deltas, self.is_game_over(), player)
+                reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
                 self.agent.step(
                     self.curr_features[player], 
                     self.outputs[player],
                     reward, 
                     new_features,
                     self.is_game_over())
-                self.agent.replay(self.agent.states, self.agent.targets)
                 
                 self.curr_features[player] = new_features
             

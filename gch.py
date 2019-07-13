@@ -81,7 +81,8 @@ def calculate_final_score(selected, final_round):
             bonus_scores[p_losers] -= 6 // num_losers 
     return round_scores + bonus_scores
 
-def get_reward(true_scores, temp_scores, deltas, game_over, player):
+
+def get_reward(true_scores, temp_scores, game_over, player):
     reward = 0
     if game_over:
         # technically "noisy" cause of ties but im sure big boy can handle it
