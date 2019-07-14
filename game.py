@@ -19,7 +19,8 @@ class Game:
         self.shz = 12 - self.players
         self.feature_extractors = feature_extractors
         self.agent = agent(self)
-        self.epsilon = 0.4
+        self.epsilon = 0
+        self.Train = True
 
     def get_base_deck(self):
         if len(base_deck) != 0:
@@ -73,7 +74,8 @@ class Game:
 
         print("--- stats ---")
         print(self.true_scores)
-        self.agent.replay(self.agent.memory)
+        if self.Train:
+            self.agent.replay(self.agent.memory)
         self.watch_wait(watch)
 
         return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
@@ -165,13 +167,14 @@ class Game:
                 reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
                 new_features = exh.extract_features(self.feature_extractors, player, self)
 
-                self.agent.step(
-                    self.curr_features[player], 
-                    np.argmax(self.outputs[player]),
-                    reward, 
-                    new_features,
-                    self.invalid_outputs[player],
-                    self.is_game_over())
+                if self.Train:
+                    self.agent.step(
+                        self.curr_features[player], 
+                        np.argmax(self.outputs[player]),
+                        reward, 
+                        new_features,
+                        self.invalid_outputs[player],
+                        self.is_game_over())
                 
                 self.curr_features[player] = new_features
             
