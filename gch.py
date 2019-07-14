@@ -20,19 +20,23 @@ def calc_action(index):
 for i in range(output_size):
     action_map.append(calc_action(i))
 
-def remove_invalid(output, chand, has_chopsticks):
-    for i in range(len(output)):
+def get_invalid_outputs(chand, has_chopsticks):
+    invalids = np.zeros(output_size, dtype='int32')
+    for i in range(output_size):
         first, chopsticks, second = get_action(i)
         if not chopsticks and chand[first] > 0:
             pass
         elif chopsticks and has_chopsticks and ((second == first and chand[first] > 1) or (chand[first] > 0 and chand[second] > 0)):
             pass
         else:
-            output[i] = float('-inf')
+            invalids[i] = 1
+    return invalids
+
+def remove_invalid_outputs(output, chand, has_chopsticks):
+    output[get_invalid_outputs(chand, has_chopsticks) == 1] = float('-inf')
     return output
 
 def parse_output(output, chand, selected):
-    output = remove_invalid(output, chand, selected[to_int('c')] > 0)
     index = np.argmax(output)
     return get_action(index)
 

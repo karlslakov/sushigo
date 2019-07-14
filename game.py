@@ -80,13 +80,16 @@ class Game:
 
 
     def get_output_for_player(self, player):
+        self.invalid_outputs[player] = gch.get_invalid_outputs(self.curr_round_hands[player], self.player_selected[player][exh.to_int('c')] > 0)
         if self.player_controllers[player] == 'agent':
             if random.random() < self.epsilon:
-                self.outputs[player] = np.random.rand(self.agent.output_size)
+                self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
             else:
-                self.outputs[player] = self.agent.predict(self.curr_features[player])
+                self.unfiltered_outputs[player] = self.agent.predict(self.curr_features[player])
         else:
-            self.outputs[player] = np.random.rand(self.agent.output_size)
+            self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
+        self.outputs[player] = self.unfiltered_outputs[player].copy()
+        self.outputs[player][self.invalid_outputs[player] == 1] = float("-inf")
     
     def execute_action(self, action, player):
         first, chopsticks, second = action
@@ -114,17 +117,20 @@ class Game:
         self.deltas = np.zeros(self.players)
         self.actions = []
         self.outputs = []
+        self.unfiltered_outputs = []
         self.temp_scores = np.array(self.true_scores)
+        self.invalid_outputs = []
 
         for i in range(self.players):
             hand = self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz]
             self.curr_round_hands.append(exh.to_counts(hand))
         
-        
         for player in range(self.players):
             self.curr_features.append(exh.extract_features(self.feature_extractors, player, self))
             self.actions.append((0, False, 0))
             self.outputs.append([])
+            self.unfiltered_outputs.append([])
+            self.invalid_outputs.append([])
 
         for t in range(self.shz): 
             self.in_round_card = t                       
@@ -132,8 +138,8 @@ class Game:
                 self.watch_print(watch, "player {} sees {}".format(player, self.curr_round_hands[player]))
                 self.watch_print(watch, self.curr_features[player])
                 self.get_output_for_player(player)
-                self.watch_print(watch, self.outputs[player])
-                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player])
+                self.watch_print(watch, self.unfiltered_outputs[player])
+                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player][exh.to_int('c')] > 0)
                 self.watch_print(watch, "action: {}".format(self.actions[player]))
                 self.watch_wait(watch)
                 self.execute_action(self.actions[player], player)
@@ -153,9 +159,10 @@ class Game:
                 reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
                 self.agent.step(
                     self.curr_features[player], 
-                    self.outputs[player],
+                    np.argmax(self.outputs[player]),
                     reward, 
                     new_features,
+                    invalid_outputs[player],
                     self.is_game_over())
                 
                 self.curr_features[player] = new_features
