@@ -1,18 +1,20 @@
 import numpy as np
 from constants import maki_counts, nigiri_scores
+from feature_extractors.extractor_helpers import onehot_len, to_int
 
-def remove_invalid(output, shz, chandsize):
-    output[chandsize:] = -1
+output_size = onehot_len
+
+def remove_invalid(output, chand):
+    output[chand == 0] = -1000
     return output
 
-def parse_output(output, shz, chandsize, selected):
-    output = remove_invalid(output, shz, chandsize)
+def parse_output(output, chand, selected):
+    output = remove_invalid(output, chand)
     index = np.argmax(output)
-    return get_action(index, shz)
+    return get_action(index)
 
-def get_action(index, shz):
+def get_action(index):
     return index
-
 
 def get_clockwise_player(p, nump):
     return (p + 1) % nump
