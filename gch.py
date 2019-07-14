@@ -1,5 +1,5 @@
 import numpy as np
-from constants import maki_counts, nigiri_scores
+from constants import maki_counts, nigiri_scores, dumping_scores
 from feature_extractors.extractor_helpers import onehot_len, to_int
 
 output_size = onehot_len # int(onehot_len + onehot_len * (onehot_len + 1) / 2)
@@ -30,6 +30,7 @@ def calculate_intermediate_score(selected):
     score = 0
     sashimi = 0
     tempura = 0
+    dumplings = 0
     for c in selected:
         if c == 'w':
             wasabi += 1
@@ -49,8 +50,13 @@ def calculate_intermediate_score(selected):
             if tempura == 2:
                 tempura = 0
                 score += 5
+        elif c == 'd':
+            dumplings += 1
         else:
             continue
+    if dumplings > 5:
+        dumplings = 5
+    score += dumping_scores[dumplings]
     return score
 
 def calculate_final_score(selected, final_round):
