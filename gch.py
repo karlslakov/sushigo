@@ -4,9 +4,6 @@ from feature_extractors.extractor_helpers import onehot_len, to_int
 
 output_size = onehot_len
 
-for i in range(output_size):
-    action_map.append(calc_action(i))
-
 def get_invalid_outputs(chand, has_chopsticks):
     invalids = np.zeros(output_size, dtype='int32')
     invalids[chand == 0] = 1

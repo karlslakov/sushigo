@@ -67,7 +67,7 @@ class Game:
         return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
 
     def get_output_for_player(self, player):
-        self.invalid_outputs[player] = gch.get_invalid_outputs(self.curr_round_hands[player], self.player_selected[player][exh.to_int('c')] > 0)
+        self.invalid_outputs[player] = gch.get_invalid_outputs(self.curr_round_hands[player], self.player_selected[player])
         if self.player_controllers[player] == 'agent':
             if random.random() < self.epsilon:
                 self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
@@ -118,7 +118,7 @@ class Game:
                 self.watch_print(watch, self.curr_features[player])
                 self.get_output_for_player(player)
                 self.watch_print(watch, self.unfiltered_outputs[player])
-                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player][exh.to_int('c')] > 0)
+                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player])
                 self.watch_print(watch, "action: {}".format(self.actions[player]))
                 self.watch_wait(watch)
                 self.execute_action(self.actions[player], player)
@@ -141,7 +141,7 @@ class Game:
                     np.argmax(self.outputs[player]),
                     reward, 
                     new_features,
-                    invalid_outputs[player],
+                    self.invalid_outputs[player],
                     self.is_game_over())
                 
                 self.curr_features[player] = new_features
