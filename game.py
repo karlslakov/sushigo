@@ -8,8 +8,6 @@ from benchmarkagent import decide
 
 base_deck = []
 
-
-
 class Game:
     def __init__(self, players, feature_extractors):
         self.players = int(players)
