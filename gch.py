@@ -4,12 +4,19 @@ from feature_extractors.extractor_helpers import onehot_len, to_int
 
 output_size = onehot_len
 
-def remove_invalid(output, chand):
-    output[chand == 0] = -1000
+for i in range(output_size):
+    action_map.append(calc_action(i))
+
+def get_invalid_outputs(chand, has_chopsticks):
+    invalids = np.zeros(output_size, dtype='int32')
+    invalids[chand == 0] = 1
+    return invalids
+
+def remove_invalid_outputs(output, chand, has_chopsticks):
+    output[get_invalid_outputs(chand, has_chopsticks) == 1] = float('-inf')
     return output
 
 def parse_output(output, chand, selected):
-    output = remove_invalid(output, chand)
     index = np.argmax(output)
     return get_action(index)
 
