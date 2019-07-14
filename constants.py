@@ -16,7 +16,7 @@ card_counts = {
     "n2" : 8,
     "n3" : 5,
     "w"  : 8,
-    "c"  : 5
+    # "c"  : 5
 }
 
 nigiri_scores = {

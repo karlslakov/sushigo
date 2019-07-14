@@ -49,14 +49,25 @@ class agent:
         if len(memory) > 1000:
             replay = random.sample(memory, 1000)
         
+        inputs = np.zeros((len(replay), self.input_size))
+        outputs = np.zeros((len(replay), self.output_size))
+        i = 0
         for state, action, reward, next_state, invalid_outputs, done in replay:
-            self.train_once(state, action, reward, next_state, invalid_outputs, done)
-    
-    def train_once(self, state, action, reward, next_state, invalid_outputs, done):        
-        target = reward
+            state, target = self.get_xy(state, action, reward, next_state, invalid_outputs, done)
+            inputs[i] = state
+            outputs[i] = target
+            i += 1
+        self.model.fit(inputs, outputs, epochs=5, verbose=0)
+        
+    def get_xy(self, state, action, reward, next_state, invalid_outputs, done):
+        r = reward
         if not done:
-            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, self.input_size)))[0])
-        target_f = self.model.predict(state.reshape((1, self.input_size)))[0]
-        target_f[action] = target
-        target_f[invalid_outputs == 1] = 0
-        self.model.fit(state.reshape((1, self.input_size)), target_f.reshape((1, self.output_size)), epochs=1, verbose=0)
+            r = r + self.gamma * np.amax(self.model.predict(next_state.reshape((1, self.input_size)))[0])
+        target = self.model.predict(state.reshape((1, self.input_size)))[0]
+        target[action] = r
+        target[invalid_outputs == 1] = -10
+        return state, target
+
+    def train_once(self, state, action, reward, next_state, invalid_outputs, done):        
+        state, target = self.get_xy(state, action, reward, next_state, invalid_outputs, done)
+        self.model.fit(state.reshape((1, self.input_size)), target.reshape((1, self.output_size)), epochs=1, verbose=0)

@@ -82,7 +82,7 @@ class Game:
 
 
     def get_output_for_player(self, player):
-        self.invalid_outputs[player] = gch.get_invalid_outputs(self.curr_round_hands[player], self.player_selected[player][exh.to_int('c')] > 0)
+        self.invalid_outputs[player] = gch.get_invalid_outputs(self.curr_round_hands[player], False)
         if self.player_controllers[player] == 'agent':
             if random.random() < self.epsilon:
                 self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
@@ -94,17 +94,10 @@ class Game:
         self.outputs[player][self.invalid_outputs[player] == 1] = float("-inf")
     
     def execute_action(self, action, player):
-        first, chopsticks, second = action
+        first = action
         self.player_selected[player][first] += 1
         self.curr_round_hands[player][first] -= 1
         self.selection_ordered[player].append(exh.to_card(first))
-        if chopsticks:
-            self.player_selected[player][second] += 1
-            self.curr_round_hands[player][second] -= 1
-            self.selection_ordered[player].append(exh.to_card(second))
-            self.curr_round_hands[player][exh.to_int('c')] += 1
-            self.player_selected[player][exh.to_int('c')] -= 1
-            # no need to remove from ordered thing, chopsticks dont matter for scoring
 
     def is_round_over(self):
         return self.in_round_card == self.shz - 1
@@ -141,7 +134,7 @@ class Game:
                 self.watch_print(watch, self.curr_features[player])
                 self.get_output_for_player(player)
                 self.watch_print(watch, self.unfiltered_outputs[player])
-                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], self.player_selected[player][exh.to_int('c')] > 0)
+                self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False)
                 self.watch_print(watch, "action: {}".format(self.actions[player]))
                 self.watch_wait(watch)
                 self.execute_action(self.actions[player], player)

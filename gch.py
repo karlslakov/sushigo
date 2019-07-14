@@ -2,34 +2,11 @@ import numpy as np
 from constants import maki_counts, nigiri_scores
 from feature_extractors.extractor_helpers import onehot_len, to_int
 
-output_size = int(onehot_len + onehot_len * (onehot_len + 1) / 2)
-action_map = []
-
-def calc_action(index):
-    if index < onehot_len:
-        return index, False, -1
-    x = onehot_len
-    first = 0
-    index -= x
-    while index >= x:
-        index -= x
-        x -= 1
-        first += 1
-    return (first, True, first+index)
-
-for i in range(output_size):
-    action_map.append(calc_action(i))
+output_size = onehot_len # int(onehot_len + onehot_len * (onehot_len + 1) / 2)
 
 def get_invalid_outputs(chand, has_chopsticks):
     invalids = np.zeros(output_size, dtype='int32')
-    for i in range(output_size):
-        first, chopsticks, second = get_action(i)
-        if not chopsticks and chand[first] > 0:
-            pass
-        elif chopsticks and has_chopsticks and ((second == first and chand[first] > 1) or (chand[first] > 0 and chand[second] > 0)):
-            pass
-        else:
-            invalids[i] = 1
+    invalids[chand == 0] = 1
     return invalids
 
 def remove_invalid_outputs(output, chand, has_chopsticks):
@@ -41,7 +18,7 @@ def parse_output(output, chand, selected):
     return get_action(index)
 
 def get_action(index):
-    return action_map[index]
+    return index
 
 def get_clockwise_player(p, nump):
     return (p + 1) % nump
