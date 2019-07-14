@@ -129,13 +129,21 @@ class Game:
                 self.true_scores += scores 
                 self.temp_scores = self.true_scores
 
+            splayer_hand = self.curr_round_hands[0]
+            for p in range(self.players - 1):
+                # TODO
+                self.curr_round_hands[p] = self.curr_round_hands[p + 1]
+            self.curr_round_hands[-1] = splayer_hand
+
             for player in range(self.players):
                 if not self.is_round_over():
                     old = self.temp_scores[player]                
                     self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.selection_ordered[player])
                     self.deltas[player] = self.temp_scores[player] - old
-                new_features = exh.extract_features(self.feature_extractors, player, self)
+               
                 reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
+                new_features = exh.extract_features(self.feature_extractors, player, self)
+
                 self.agent.step(
                     self.curr_features[player], 
                     np.argmax(self.outputs[player]),
@@ -145,12 +153,6 @@ class Game:
                     self.is_game_over())
                 
                 self.curr_features[player] = new_features
-            
-            splayer_hand = self.curr_round_hands[0]
-            for p in range(self.players - 1):
-                # TODO
-                self.curr_round_hands[p] = self.curr_round_hands[p + 1]
-            self.curr_round_hands[-1] = splayer_hand
 
     def start_irl_game(self):
         sh = input("Input hand: ")
