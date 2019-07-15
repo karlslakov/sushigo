@@ -100,7 +100,7 @@ def get_reward(true_scores, temp_scores, game_over, player):
         argsorted = np.argsort(true_scores)
         places = argsorted.tolist()
         place = places.index(player)
-        reward = true_scores[player] + 15 * place
+        reward = true_scores[player] + 35 * place
     else:
         # implement round based punishment for losers?
         reward = temp_scores[player]

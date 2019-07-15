@@ -1,4 +1,4 @@
-from keras.optimizers import Adam
+from keras.optimizers import RMSprop
 from keras.models import Sequential
 from keras.layers import Input
 from keras.layers.core import Dense, Dropout
@@ -15,7 +15,7 @@ class agent:
         self.input_size = exh.get_input_size(self.feature_extractors, game) 
         self.memory = []
         self.gamma = 0.9
-        self.learning_rate = 0.01
+        self.learning_rate = 0.001
         self.output_size = gch.output_size
         self.model = self.create_model()
 
@@ -25,7 +25,7 @@ class agent:
         model.add(Dense(output_dim=120, activation='relu'))
         model.add(Dense(output_dim=120, activation='relu'))
         model.add(Dense(output_dim=self.output_size, activation='linear'))
-        opt = Adam(self.learning_rate)
+        opt = RMSprop(self.learning_rate)
         model.compile(loss='mse', optimizer=opt)
 
         if weights:
@@ -42,12 +42,12 @@ class agent:
 
     def step(self, state, action, reward, next_state, invalid_outputs, done):
         self.remember(state, action, reward, next_state, invalid_outputs, done)
-        self.train_once(state, action, reward, next_state, invalid_outputs, done)
+        # self.train_once(state, action, reward, next_state, invalid_outputs, done)
 
     def replay(self, memory):
         replay = memory
-        if len(memory) > 1000:
-            replay = random.sample(memory, 1000)
+        if len(memory) > 32:
+            replay = random.sample(memory, 32)
         
         inputs = np.zeros((len(replay), self.input_size))
         outputs = np.zeros((len(replay), self.output_size))
@@ -57,15 +57,16 @@ class agent:
             inputs[i] = state
             outputs[i] = target
             i += 1
-        self.model.fit(inputs, outputs, epochs=5, verbose=0)
+        self.model.fit(inputs, outputs, epochs=1, verbose=0)
         
     def get_xy(self, state, action, reward, next_state, invalid_outputs, done):
         r = reward
         if not done:
-            r = r + self.gamma * np.amax(self.model.predict(next_state.reshape((1, self.input_size)))[0])
+            next_q = self.model.predict(next_state.reshape((1, self.input_size)))[0]
+            next_q[invalid_outputs == 1] = float("-inf")
+            r = r + self.gamma * np.amax(next_q)
         target = self.model.predict(state.reshape((1, self.input_size)))[0]
         target[action] = r
-        target[invalid_outputs == 1] = -10
         return state, target
 
     def train_once(self, state, action, reward, next_state, invalid_outputs, done):        

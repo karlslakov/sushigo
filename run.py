@@ -22,66 +22,44 @@ def get_features():
         strategy_helper_features.strategy_helper_features(),
     ]
 
-def end_loop(iters, avgs, ratios, g, save):
+def end_loop(iters, g, save):
     print("finished model training, saving stats")
-    plt.plot(range(iters), avgs)
-    plt.show()
-
-    plt.plot(range(iters), ratios)
-    plt.show()
-
     if save:
         g.agent.model.save(save)
-    np.save("avgs", avgs)
-    np.save("ratios", ratios)
 
 def train_loop(g, iters, save=None):
-    avgs = []
-    places_stats = []
-    ratios = []
     g.epsilon = 0.6
     def save_on_exit(sig, frame):
-        end_loop(len(avgs), avgs, ratios, g, save)
+        end_loop(len(avgs), g, save)
         sys.exit(0)
     signal.signal(signal.SIGINT, save_on_exit)
 
     for i in range(iters):
         print("iter %d" % i)
-        avg, max, min = g.start_sim_game()
-        ratio = g.true_scores[0] / sum(g.true_scores)
-        argsorted = np.argsort(g.true_scores)
-        places = argsorted.tolist()
-        places.reverse()
-        place = places.index(0)
-        places_stats.append(place)
-        ratios.append(ratio)
-        avgs.append(avg)
+        g.play_sim_game()
         if g.epsilon > 0.01:
             g.epsilon -= 0.0005
 
-    end_loop(iters, avgs, ratios, g, save)
+    end_loop(iters, g, save)
 
 
 def watch(game):
     g.epsilon = 0
     g.Train = False
-    g.start_sim_game(watch=True)
+    g.play_sim_game_watched()
 
 
 def eval_model(game, iters = 50):
     game.epsilon = 0
-    game.Train = False
-    avgs = []
+    game.Train = False    
     places_stats = []
     ratios = []
     for i in range(1,4):
         g.player_controllers[i] = "rando"
-        avg, max, min = g.start_sim_game()
-        ratio = g.true_scores[0] / sum(g.true_scores)
     
     for i in range(iters):
         print("iter %d" % i)
-        avg, max, min = g.start_sim_game()
+        g.play_sim_game()
         ratio = g.true_scores[0] / sum(g.true_scores)
         argsorted = np.argsort(g.true_scores)
         places = argsorted.tolist()
@@ -89,11 +67,9 @@ def eval_model(game, iters = 50):
         place = places.index(0)
         places_stats.append(place)
         ratios.append(ratio)
-        avgs.append(avg)
     
     places_stats = np.array(places_stats)
     ratios = np.array(ratios)
-    
 
     print("ratios:")
     print(ratios)

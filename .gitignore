@@ -25,6 +25,7 @@ wheels/
 *.egg
 *.npy
 *.h5
+*.pword
 MANIFEST
 
 # PyInstaller
