@@ -1,29 +1,24 @@
 import numpy as np
-from constants import maki_counts, nigiri_scores
+from constants import maki_counts, nigiri_scores, dumping_scores
+from feature_extractors.extractor_helpers import onehot_len, to_int
 
+output_size = onehot_len # int(onehot_len + onehot_len * (onehot_len + 1) / 2)
 
-def remove_invalid(output, shz, chandsize, has_chopsticks):
-    for i in range(len(output)):
-        first, chopsticks, second = get_action(i, shz)
-        if first >= chandsize or second >= chandsize or chopsticks and not has_chopsticks:
-            output[i] = -1
-    return output    
+def get_invalid_outputs(chand, has_chopsticks):
+    invalids = np.zeros(output_size, dtype='int32')
+    invalids[chand == 0] = 1
+    return invalids
 
-def parse_output(output, shz, chandsize, selected):
-    output = remove_invalid(output, shz, chandsize, 'c' in selected)
+def remove_invalid_outputs(output, chand, has_chopsticks):
+    output[get_invalid_outputs(chand, has_chopsticks) == 1] = float('-inf')
+    return output
+
+def parse_output(output, chand, selected):
     index = np.argmax(output)
-    return get_action(index, shz)
+    return get_action(index)
 
-def get_action(index, shz):
-    if index < shz:
-        return index, False, 0
-    first = -1
-    while index >= shz:
-        index = index - shz
-        shz -= 1
-        first += 1
-    return first, True, first+index+1
-
+def get_action(index):
+    return index
 
 def get_clockwise_player(p, nump):
     return (p + 1) % nump
@@ -35,6 +30,7 @@ def calculate_intermediate_score(selected):
     score = 0
     sashimi = 0
     tempura = 0
+    dumplings = 0
     for c in selected:
         if c == 'w':
             wasabi += 1
@@ -54,8 +50,13 @@ def calculate_intermediate_score(selected):
             if tempura == 2:
                 tempura = 0
                 score += 5
+        elif c == 'd':
+            dumplings += 1
         else:
             continue
+    if dumplings > 5:
+        dumplings = 5
+    score += dumping_scores[dumplings]
     return score
 
 def calculate_final_score(selected, final_round):
@@ -91,3 +92,16 @@ def calculate_final_score(selected, final_round):
 
             bonus_scores[p_losers] -= 6 // num_losers 
     return round_scores + bonus_scores
+
+def get_reward(true_scores, temp_scores, game_over, player):
+    reward = 0
+    if game_over:
+        # technically "noisy" cause of ties but im sure big boy can handle it
+        argsorted = np.argsort(true_scores)
+        places = argsorted.tolist()
+        place = places.index(player)
+        reward = true_scores[player] + 35 * place
+    else:
+        # implement round based punishment for losers?
+        reward = temp_scores[player]
+    return reward

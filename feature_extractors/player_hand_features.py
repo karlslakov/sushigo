@@ -7,13 +7,12 @@ class player_hand_features:
         cplayer = player
         out = []
         for p in range(game.players):
-            for c in range(game.shz):
-                if c < len(game.curr_round_hands[cplayer]) and p <= game.in_round_card:
-                    out.append(exh.to_onehot_embedding(game.curr_round_hands[cplayer][c]))
-                else:
-                    out.append(exh.nocard_onehot)
+            if p <= game.in_round_card:
+                out.append(game.curr_round_hands[cplayer])
+            else:
+                out.append(np.zeros(exh.onehot_len))
             cplayer = gch.get_clockwise_player(cplayer, game.players)
         return np.array(out)
     
     def output_size(self, game):
-        return game.shz * game.players * exh.onehot_len
+        return game.players * exh.onehot_len

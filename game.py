@@ -19,7 +19,8 @@ class Game:
         self.shz = 12 - self.players
         self.feature_extractors = feature_extractors
         self.agent = agent(self)
-        self.epsilon = 0.4
+        self.epsilon = 0
+        self.Train = True
 
     def get_base_deck(self):
         if len(base_deck) != 0:
@@ -29,87 +30,67 @@ class Game:
                 base_deck.append(x)
         return base_deck.copy()
 
-    def watch_print(self, watch, text):
-        if watch:
-            print(text)
-    
-    def watch_wait(self, watch):
-        if watch:
-            input("press enter to continue")
-
-    def start_sim_game(self, watch=False):
+    def init_game(self):
         print("Starting sim game with players = %d" % self.players)
         self.deck = self.get_base_deck()
-        self.first_picks = np.zeros(exh.onehot_len)
         random.shuffle(self.deck)
-
-        self.player_selected = []
-        for _ in range(self.players):
-            self.player_selected.append([])
-        
-        self.in_round_card = 0
         self.true_scores = np.zeros(self.players)
+        self.player_selected = []
+        self.selection_ordered = []
+        self.in_round_card = 0
         self.round = 0
-        self.watch_print(watch, "starting round 0")
-        self.play_sim_round(watch)
-        self.watch_print(watch, "end round 0")
-        self.watch_print(watch, self.true_scores)
-        self.watch_print(watch, self.player_selected)
-        self.watch_wait(watch)
-        self.round = 1
-        self.watch_print(watch, "starting round 1")
-        self.play_sim_round(watch)
-        self.watch_print(watch, "end round 1")
-        self.watch_print(watch, self.true_scores)
-        self.watch_print(watch, self.player_selected)
-        self.watch_wait(watch)
-        self.round = 2
-        self.watch_print(watch, "starting final round")
-        self.play_sim_round(watch)
-        self.watch_print(watch, "end final round")
-        self.watch_print(watch, self.true_scores)
-        self.watch_print(watch, self.player_selected)
+        for _ in range(self.players):
+            self.player_selected.append(np.zeros(exh.onehot_len))
+            self.selection_ordered.append([])
 
-        print("--- stats ---")
+    def play_sim_game_watched(self):
+        self.init_game()
+
+        print("starting round 0")
+        self.play_sim_round_watched()
+        print("end round 0")
         print(self.true_scores)
-        self.watch_wait(watch)
+        print(self.player_selected)
+        self.watch_wait()
+        self.round = 1
+        print("starting round 1")
+        self.play_sim_round_watched()
+        print("end round 1")
+        print(self.true_scores)
+        print(self.player_selected)
+        self.watch_wait()
+        self.round = 2
+        print("starting final round")
+        self.play_sim_round_watched()
+        print("end final round")
+        print(self.true_scores)
+        self.watch_wait()
 
-        self.agent.replay(self.agent.states, self.agent.targets)
-        return np.mean(self.true_scores), np.max(self.true_scores), np.min(self.true_scores)
-
-
-    def get_reward(self, player):
-        reward = 0
-        if self.is_game_over():
-            # technically "noisy" cause of ties but im sure big boy can handle it
-            argsorted = np.argsort(self.true_scores)
-            places = argsorted.tolist()            
-            place = places.index(player)
-            reward = self.true_scores[player] + 30 * place
-        else:
-            # implement round based punishment for losers?
-            reward = self.temp_scores[player]
-        return reward
-
+    def play_sim_game(self):
+        self.init_game()
+        
+        self.play_sim_round()
+        self.round = 1
+        self.play_sim_round()
+        self.round = 2
+        self.play_sim_round()
+       
     def get_output_for_player(self, player):
         if self.player_controllers[player] == 'agent':
             if random.random() < self.epsilon:
-                self.outputs[player] = np.random.rand(self.agent.get_output_size())
+                self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
             else:
-                self.outputs[player] = self.agent.predict(self.curr_features[player])
+                self.unfiltered_outputs[player] = self.agent.predict(self.curr_features[player])
         else:
-            self.outputs[player] = np.random.rand(self.agent.get_output_size())
+            self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)        
+        self.outputs[player] = self.unfiltered_outputs[player].copy()
+        self.outputs[player][self.invalid_outputs[player] == 1] = float("-inf")
     
     def execute_action(self, action, player):
-        first, chopsticks, second = action
-        self.player_selected[player].append(self.curr_round_hands[player][first])
-        if chopsticks:
-            self.player_selected[player].append(self.curr_round_hands[player][second])
-            self.curr_round_hands[player] = list(np.delete(np.array(self.curr_round_hands[player]), (first, second)))
-            self.curr_round_hands[player].append('c')
-            self.player_selected[player].remove('c')
-        else:
-            del self.curr_round_hands[player][first]
+        first = action
+        self.player_selected[player][first] += 1
+        self.curr_round_hands[player][first] -= 1
+        self.selection_ordered[player].append(exh.to_card(first))
 
     def is_round_over(self):
         return self.in_round_card == self.shz - 1
@@ -117,69 +98,114 @@ class Game:
     def is_game_over(self):
         return self.is_round_over() and self.round >= 2
 
-    def play_sim_round(self, watch=False):
+    def init_round(self):
         offset = self.round * self.players
         self.curr_round_hands = []
         self.curr_features = []
         self.deltas = np.zeros(self.players)
         self.actions = []
         self.outputs = []
+        self.unfiltered_outputs = []
         self.temp_scores = np.array(self.true_scores)
+        self.invalid_outputs = []
 
         for i in range(self.players):
-            self.curr_round_hands.append(self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz])
-        
+            hand = self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz]
+            self.curr_round_hands.append(exh.to_counts(hand))
         
         for player in range(self.players):
             self.curr_features.append(exh.extract_features(self.feature_extractors, player, self))
             self.actions.append((0, False, 0))
             self.outputs.append([])
+            self.unfiltered_outputs.append([])
+            self.invalid_outputs.append(gch.get_invalid_outputs(self.curr_round_hands[player], False))
 
-        for t in range(self.shz): 
-            self.in_round_card = t                       
-            for player in range(self.players):
-                self.watch_print(watch, "player {} sees {}".format(player, self.curr_round_hands[player]))
-                self.watch_print(watch, self.curr_features[player])
-                self.get_output_for_player(player)
-                self.watch_print(watch, self.outputs[player])
-                self.actions[player] = gch.parse_output(self.outputs[player], self.shz, self.shz - t, self.player_selected[player])
-                if t == 0:
-                    self.first_picks += exh.to_onehot_embedding(self.curr_round_hands[player][self.actions[player][0]])
-                self.watch_print(watch, "action: {}".format(self.actions[player]))
-                self.watch_wait(watch)
-                self.execute_action(self.actions[player], player)
+    def rotate_player_hands(self):
+        splayer_hand = self.curr_round_hands[0]
+        for p in range(self.players - 1):
+            # TODO
+            self.curr_round_hands[p] = self.curr_round_hands[p + 1]
+        self.curr_round_hands[-1] = splayer_hand
 
-            if self.is_round_over():
-                scores = gch.calculate_final_score(self.player_selected, self.is_game_over())
-                self.deltas = scores
-                self.true_scores += scores 
-                self.temp_scores = self.true_scores
+    def update_true_scores(self):
+        if self.is_round_over():
+            scores = gch.calculate_final_score(self.selection_ordered, self.is_game_over())
+            self.deltas = scores
+            self.true_scores += scores 
+            self.temp_scores = self.true_scores
 
-            for player in range(self.players):
-                if not self.is_round_over():
-                    old = self.temp_scores[player]                
-                    self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.player_selected[player])
-                    self.deltas[player] = self.temp_scores[player] - old
-                new_features = exh.extract_features(self.feature_extractors, player, self)
-                reward = self.get_reward(player)
+    def clear_selected(self):
+        for p in range(self.players):
+            puddings = self.player_selected[p][exh.to_int('p')]
+            self.player_selected[p] = np.zeros(exh.onehot_len)
+            self.player_selected[p][exh.to_int('p')] = puddings
+            self.selection_ordered[p] = [x for x in self.selection_ordered[p] if x == 'p']
+    
+    def prep_player_output_action(self, player):
+        self.get_output_for_player(player)
+        self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False)
+        self.execute_action(self.actions[player], player)
+
+    def end_pick_cleanup_and_train(self):
+        for player in range(self.players):
+            if not self.is_round_over():
+                old = self.temp_scores[player]                
+                self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.selection_ordered[player])
+                self.deltas[player] = self.temp_scores[player] - old
+            
+            reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
+            new_features = exh.extract_features(self.feature_extractors, player, self)
+            next_invalids = gch.get_invalid_outputs(self.curr_round_hands[player], False)
+
+            if self.Train:
                 self.agent.step(
                     self.curr_features[player], 
-                    self.outputs[player],
+                    np.argmax(self.outputs[player]),
                     reward, 
                     new_features,
-                    self.is_game_over())
-                
-                self.curr_features[player] = new_features
+                    next_invalids,
+                    self.is_round_over())
+                self.agent.replay(self.agent.memory)
             
-            splayer_hand = self.curr_round_hands[0]
-            for p in range(self.players - 1):
-                # TODO
-                self.curr_round_hands[p] = self.curr_round_hands[p + 1]
-            self.curr_round_hands[-1] = splayer_hand
-        
-        for p in range(self.players):
-            self.player_selected[p] = [x for x in self.player_selected[p] if x == 'p']
+            self.curr_features[player] = new_features
+            self.invalid_outputs[player] = next_invalids
 
+    def play_sim_round(self):
+        self.init_round()        
+        for self.in_round_card in range(self.shz):                       
+            for player in range(self.players):
+                self.prep_player_output_action(player)
+
+            self.update_true_scores()
+            self.rotate_player_hands()
+
+            self.end_pick_cleanup_and_train()
+        self.clear_selected()
+
+    def watch_wait(self):
+        input("press enter to continue")
+
+    def play_sim_round_watched(self):
+        self.init_round()        
+        for self.in_round_card in range(self.shz):                   
+            for player in range(self.players):
+                hand = [exh.to_card(x) for x in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]]
+                print("player {} sees {}".format(player, hand))
+                print("player {} has {}".format(player, self.selection_ordered[player]))
+                self.prep_player_output_action(player)
+                    
+                print(self.curr_features[player])
+                print(self.unfiltered_outputs[player])
+                
+                print("action: {}".format(exh.to_card(self.actions[player])))
+                self.watch_wait()
+
+            self.update_true_scores()
+            self.rotate_player_hands()
+
+            self.end_pick_cleanup_and_train()
+        self.clear_selected()
+        
 
     def start_irl_game(self):
         sh = input("Input hand: ")
