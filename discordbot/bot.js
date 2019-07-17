@@ -1,17 +1,20 @@
 const Discord = require('discord.js');
-const Game = require('./game.js');
+const Game = require('./game');
 const client = new Discord.Client();
 const fs = require('fs');
 
 var state = 'idle';
 var players = -1;
-var users = []
+var users = [];
+var channel = null;
 var game = null;
 
 function resetToIdle() {
     state = 'idle';
     players = -1;
-    users = []
+    users = [];
+    channel = null;
+    game = null;
 }
 
 client.on('ready', () => {
@@ -36,10 +39,14 @@ client.on('message', msg => {
                     return;
                 }
                 state = 'rolecall';
+                channel = msg.channel;
                 msg.channel.send(`Starting game with ${players} players! Starting rolecall! Type 'here!' (without quotes) to join the game! Type 'cancel game' to cancel!`);
             }
             break;
         case 'rolecall':
+            if (msg.channel !== channel)
+                break;
+            
             if (msg.content == "cancel game") {
                 msg.channel.send("Game canceled!");
                 resetToIdle();
@@ -58,9 +65,19 @@ client.on('message', msg => {
                 msg.channel.send(rep);
 
                 if (users.length === players) {
-                    msg.channel.send("All players are ready! Starting game!");
+                    msg.channel.send("All players are ready! Starting game! Type stop game to stop!");
+                    game = new Game(users, channel);
+                    game.startRound();
                     state = 'game';
                 }
+            }
+            break;
+            case 'game':
+            if (msg.content === "stop game" && msg.channel === channel) {
+                msg.channel.send("Stopping game!");
+                resetToIdle();
+            } else {
+                game.onMessage(msg);
             }
             break;
     }
