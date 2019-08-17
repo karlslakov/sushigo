@@ -24,6 +24,11 @@ def get_clockwise_player(p, nump):
     return (p + 1) % nump
 def get_cclockwise_player(p, nump):
     return (p - 1) % nump
+def get_next_player(p, game):
+    if game.round == 1:
+        return get_cclockwise_player(p, game.players)
+    else:
+        return get_clockwise_player(p, game.players)
 
 def calculate_intermediate_score(selected):
     wasabi = 0

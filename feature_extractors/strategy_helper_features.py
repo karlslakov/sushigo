@@ -26,7 +26,7 @@ class strategy_helper_features:
             out.append(int(wassabi_active))
             out.append(int(needs_tempura))
             out.append(int(needs_sashimi))
-            cplayer = gch.get_clockwise_player(cplayer, game.players)
+            cplayer = gch.get_next_player(cplayer, game)
         
         return np.array(out)
     

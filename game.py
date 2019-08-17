@@ -66,14 +66,20 @@ class Game:
         print(self.true_scores)
         self.watch_wait()
 
-    def play_sim_game(self):
+    def play_sim_game(self, round_outputs=False):
         self.init_game()
         
         self.play_sim_round()
+        if round_outputs:
+            print(self.true_scores)
         self.round = 1
         self.play_sim_round()
+        if round_outputs:
+            print(self.true_scores)
         self.round = 2
         self.play_sim_round()
+        if round_outputs:
+            print(self.true_scores)
        
     def get_output_for_player(self, player):
         if self.player_controllers[player] == 'agent':
@@ -166,12 +172,12 @@ class Game:
         self.execute_action(self.actions[player], player)
 
     def end_pick_cleanup_and_train(self):
-        for player in range(self.players):
-            if not self.is_round_over():
+        if not self.is_round_over():
+            for player in range(self.players):
                 old = self.temp_scores[player]                
                 self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.selection_ordered[player])
                 self.deltas[player] = self.temp_scores[player] - old
-            
+        for player in range(self.players):
             reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
             new_features = exh.extract_features(self.feature_extractors, player, self)
             next_invalids = gch.get_invalid_outputs(self.curr_round_hands[player], False)

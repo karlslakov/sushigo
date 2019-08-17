@@ -5,6 +5,8 @@ from feature_extractors import (
     game_metadata_features, 
     player_selected_features, 
     strategy_helper_features,
+    discard_features,
+    score_features,
 )
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +22,8 @@ def get_features():
         game_metadata_features.game_metadata_features(),
         player_selected_features.player_selected_features(),
         strategy_helper_features.strategy_helper_features(),
+        discard_features.discard_features(),
+        score_features.score_features(),
     ]
 
 def end_loop(iters, g, save):
@@ -52,9 +56,7 @@ def play(game):
     g.epsilon = 0
     g.Train = False
     g.player_controllers[0] = "human"
-    g.play_sim_game()
-    print(g.true_scores)
-
+    g.play_sim_game(round_outputs=True)
 
 def eval_model(game, iters = 50):
     game.epsilon = 0

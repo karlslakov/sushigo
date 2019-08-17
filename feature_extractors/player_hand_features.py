@@ -11,7 +11,7 @@ class player_hand_features:
                 out.append(game.curr_round_hands[cplayer])
             else:
                 out.append(np.zeros(exh.onehot_len))
-            cplayer = gch.get_clockwise_player(cplayer, game.players)
+            cplayer = gch.get_next_player(cplayer, game)
         return np.array(out)
     
     def output_size(self, game):
