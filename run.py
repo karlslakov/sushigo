@@ -48,6 +48,13 @@ def watch(game):
     g.Train = False
     g.play_sim_game_watched()
 
+def play(game):
+    g.epsilon = 0
+    g.Train = False
+    g.player_controllers[0] = "human"
+    g.play_sim_game()
+    print(g.true_scores)
+
 
 def eval_model(game, iters = 50):
     game.epsilon = 0
@@ -85,11 +92,13 @@ def eval_model(game, iters = 50):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-p','--players', type=int, required=True)
-    parser.add_argument('-w','--watch', type=bool, required=False)
+    parser.add_argument('-w','--watch', action="store_const", const=True, required=False)
     parser.add_argument('-i', '--iters', type=int, required=False)
     parser.add_argument('-s', '--save', type=str, required=False)
     parser.add_argument('-l', '--load', type=str, required=False)
-    parser.add_argument('-e', '--eval', type=bool, required=False)
+    parser.add_argument('-e', '--eval', action="store_const", const=True, required=False)
+    parser.add_argument('--irl_type', type=str, required=False)
+
 
 
     io_args = parser.parse_args()
@@ -101,7 +110,11 @@ if __name__ == '__main__':
     if io_args.load:
         g.agent.model = load_model(io_args.load)
 
-    if not io_args.watch:
+    if io_args.irl_type == 'cpuvsall':
+        g.start_irl_game()
+    elif io_args.irl_type == 'hvsall':
+        play(g)
+    elif not io_args.watch:
         if io_args.eval:
             eval_model(g, io_args.iters)
         else:

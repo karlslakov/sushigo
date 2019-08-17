@@ -81,6 +81,19 @@ class Game:
                 self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
             else:
                 self.unfiltered_outputs[player] = self.agent.predict(self.curr_features[player])
+        elif self.player_controllers[player] == 'human':
+            hand = []
+            for i in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]:
+                hand.append([exh.to_card(i)] * int(self.curr_round_hands[player][i]))
+            print("you see {}".format(hand))
+            print("you have {}".format(self.selection_ordered[player]))
+            while True:
+                s = input("what do u want boui? ")
+                if s not in card_counts or self.curr_round_hands[player][exh.to_int(s)] <= 0:
+                    print("no?")
+                    continue
+                self.unfiltered_outputs[player] = np.array(exh.to_onehot_embedding(s), dtype=np.float32)
+                break
         else:
             self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)        
         self.outputs[player] = self.unfiltered_outputs[player].copy()
@@ -121,11 +134,17 @@ class Game:
             self.invalid_outputs.append(gch.get_invalid_outputs(self.curr_round_hands[player], False))
 
     def rotate_player_hands(self):
-        splayer_hand = self.curr_round_hands[0]
-        for p in range(self.players - 1):
-            # TODO
-            self.curr_round_hands[p] = self.curr_round_hands[p + 1]
-        self.curr_round_hands[-1] = splayer_hand
+        if round == 1:
+            splayer_hand = self.curr_round_hands[-1]
+            for p in range(self.players - 1, 0, -1):
+                self.curr_round_hands[p] = self.curr_round_hands[p - 1]
+            self.curr_round_hands[0] = splayer_hand
+        else:
+            splayer_hand = self.curr_round_hands[0]
+            for p in range(self.players - 1):
+                # TODO
+                self.curr_round_hands[p] = self.curr_round_hands[p + 1]
+            self.curr_round_hands[-1] = splayer_hand
 
     def update_true_scores(self):
         if self.is_round_over():
@@ -207,7 +226,52 @@ class Game:
         self.clear_selected()
         
 
-    def start_irl_game(self):
-        sh = input("Input hand: ")
+    def start_irl_game_cpuvall(self):
+        self.init_game()
+        self.round = 0
+        self.start_irl_round()
+        self.round = 1
+        self.start_irl_round()
+        self.round = 2
+        self.start_irl_round()
+
+    def start_irl_round_cpuvall(self):
+        self.curr_round_hands = []
+        self.curr_features = [0]
+        self.outputs = [0]
+        self.unfiltered_outputs = [0]
+        self.invalid_outputs = [0]
+        for p in range(self.players):
+            self.curr_round_hands.append(np.zeros(gch.onehot_len))
+        
+        for self.in_round_card in range(self.shz):
+            print(self.curr_round_hands)
+            if self.in_round_card < self.players:
+                h = input("What hand do you see? ")
+                cards = h.split(",")
+                self.curr_round_hands[0] = exh.to_counts(cards)
+            else: 
+                hand = [exh.to_card(x) for x in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]]
+                print("you should see {} ".format(hand))
+
+            self.curr_features[0] = exh.extract_features(self.feature_extractors, 0, self)
+            self.invalid_outputs[0] = gch.get_invalid_outputs(self.curr_round_hands[0], False)
+            self.get_output_for_player(0)
+            action = gch.parse_output(self.outputs[0], self.curr_round_hands[0], False)
+            print("take {}".format(exh.to_card(action)))
+            self.execute_action(action, 0)
+
+            for p in range(self.players - 1):
+                player = p + 1
+                while True:
+                    pick = input("what did the player to your left (the one you pass to in first round) pick? ")
+                    if pick in card_counts:
+                        break
+                    print("that card isn't real, you fool")
+            
+            self.rotate_player_hands()
+                
+                
+
         
   

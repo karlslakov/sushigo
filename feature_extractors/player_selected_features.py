@@ -9,6 +9,7 @@ class player_selected_features:
         for i in range(game.players):
             out.append(game.player_selected[cplayer])
             cplayer = gch.get_clockwise_player(cplayer, game.players)
+        
         return np.array(out)
     
     def output_size(self, game):

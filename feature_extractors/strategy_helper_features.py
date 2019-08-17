@@ -27,7 +27,7 @@ class strategy_helper_features:
             out.append(int(needs_tempura))
             out.append(int(needs_sashimi))
             cplayer = gch.get_clockwise_player(cplayer, game.players)
-
+        
         return np.array(out)
     
     def output_size(self, game):
