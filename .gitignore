@@ -23,9 +23,10 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-*.npy
 *.h5
+*.npy
 *.pword
+discordbot/node_modules
 MANIFEST
 
 # PyInstaller
