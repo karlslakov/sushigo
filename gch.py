@@ -20,6 +20,9 @@ def parse_output(output, chand, selected):
 def get_action(index):
     return index
 
+def get_shz(players):
+    return 12 - players
+
 def get_clockwise_player(p, nump):
     return (p + 1) % nump
 def get_cclockwise_player(p, nump):

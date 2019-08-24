@@ -14,5 +14,5 @@ class player_hand_features:
             cplayer = gch.get_next_player(cplayer, game)
         return np.array(out)
     
-    def output_size(self, game):
-        return game.players * exh.onehot_len
+    def output_size(self, players):
+        return players * exh.onehot_len

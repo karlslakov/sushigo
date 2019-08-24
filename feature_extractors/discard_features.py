@@ -7,5 +7,5 @@ class discard_features:
         offset = game.round * game.players * game.shz
         return np.array(exh.to_counts(game.deck[:offset]))
     
-    def output_size(self, game):
+    def output_size(self, players):
         return gch.onehot_len

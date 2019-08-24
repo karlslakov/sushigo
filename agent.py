@@ -8,11 +8,9 @@ import feature_extractors.extractor_helpers as exh
 import gch
 
 class agent:
-    def __init__(self, game):
-        self.players = game.players
-        self.shz = game.shz
-        self.feature_extractors = game.feature_extractors
-        self.input_size = exh.get_input_size(self.feature_extractors, game) 
+    def __init__(self, feature_extractors, players):
+        self.players = players
+        self.input_size = exh.get_input_size(feature_extractors, players) 
         self.memory = []
         self.gamma = 0.9
         self.learning_rate = 0.001

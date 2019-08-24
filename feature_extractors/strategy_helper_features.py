@@ -30,5 +30,5 @@ class strategy_helper_features:
         
         return np.array(out)
     
-    def output_size(self, game):
-        return 3 * game.players
+    def output_size(self, players):
+        return 3 * players

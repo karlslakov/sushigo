@@ -12,5 +12,5 @@ class player_selected_features:
         
         return np.array(out)
     
-    def output_size(self, game):
-        return game.players * exh.onehot_len
+    def output_size(self, players):
+        return players * exh.onehot_len

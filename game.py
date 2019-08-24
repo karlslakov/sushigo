@@ -4,23 +4,18 @@ import feature_extractors.extractor_helpers as exh
 import numpy as np
 from constants import card_counts, nigiri_scores, maki_counts
 import gch 
-from benchmarkagent import decide
 
 base_deck = []
 
 
 
 class Game:
-    def __init__(self, players, feature_extractors):
+    def __init__(self, players, feature_extractors, player_controllers, train_controller):
         self.players = int(players)
-        self.player_controllers = []
-        for _ in range(players):
-            self.player_controllers.append('agent')
-        self.shz = 12 - self.players
+        self.shz = gch.get_shz(players)
+        self.player_controllers = player_controllers
         self.feature_extractors = feature_extractors
-        self.agent = agent(self)
-        self.epsilon = 0
-        self.Train = True
+        self.train_controller = train_controller
 
     def get_base_deck(self):
         if len(base_deck) != 0:
@@ -43,7 +38,8 @@ class Game:
             self.player_selected.append(np.zeros(exh.onehot_len))
             self.selection_ordered.append([])
 
-    def play_sim_game_watched(self):
+    def play_sim_game_watched(self, verbose=0):
+        self.verbose = verbose
         self.init_game()
 
         print("starting round 0")
@@ -82,26 +78,7 @@ class Game:
             print(self.true_scores)
        
     def get_output_for_player(self, player):
-        if self.player_controllers[player] == 'agent':
-            if random.random() < self.epsilon:
-                self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)
-            else:
-                self.unfiltered_outputs[player] = self.agent.predict(self.curr_features[player])
-        elif self.player_controllers[player] == 'human':
-            hand = []
-            for i in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]:
-                hand.append([exh.to_card(i)] * int(self.curr_round_hands[player][i]))
-            print("you see {}".format(hand))
-            print("you have {}".format(self.selection_ordered[player]))
-            while True:
-                s = input("what do u want boui? ")
-                if s not in card_counts or self.curr_round_hands[player][exh.to_int(s)] <= 0:
-                    print("no?")
-                    continue
-                self.unfiltered_outputs[player] = np.array(exh.to_onehot_embedding(s), dtype=np.float32)
-                break
-        else:
-            self.unfiltered_outputs[player] = np.random.rand(self.agent.output_size)        
+        self.unfiltered_outputs[player] = self.player_controllers[player].get_output(self, player)       
         self.outputs[player] = self.unfiltered_outputs[player].copy()
         self.outputs[player][self.invalid_outputs[player] == 1] = float("-inf")
     
@@ -182,15 +159,8 @@ class Game:
             new_features = exh.extract_features(self.feature_extractors, player, self)
             next_invalids = gch.get_invalid_outputs(self.curr_round_hands[player], False)
 
-            if self.Train:
-                self.agent.step(
-                    self.curr_features[player], 
-                    np.argmax(self.outputs[player]),
-                    reward, 
-                    new_features,
-                    next_invalids,
-                    self.is_round_over())
-                self.agent.replay(self.agent.memory)
+            if self.train_controller:
+                self.train_controller.train(self, player, reward, new_features, next_invalids)
             
             self.curr_features[player] = new_features
             self.invalid_outputs[player] = next_invalids
@@ -214,13 +184,16 @@ class Game:
         self.init_round()        
         for self.in_round_card in range(self.shz):                   
             for player in range(self.players):
-                hand = [exh.to_card(x) for x in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]]
-                print("player {} sees {}".format(player, hand))
-                print("player {} has {}".format(player, self.selection_ordered[player]))
+                print("player {}".format(player))
+                if self.verbose == 0:
+                    hand = [exh.to_card(x) for x in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]]
+                    print("player {} sees {}".format(player, hand))
+                    print("player {} has {}".format(player, self.selection_ordered[player]))
                 self.prep_player_output_action(player)
-                    
-                print(self.curr_features[player])
-                print(self.unfiltered_outputs[player])
+                
+                if self.verbose == 0:
+                    print(self.curr_features[player])
+                    print(self.unfiltered_outputs[player])
                 
                 print("action: {}".format(exh.to_card(self.actions[player])))
                 self.watch_wait()

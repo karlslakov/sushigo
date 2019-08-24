@@ -13,7 +13,9 @@ import numpy as np
 from keras.models import load_model
 import signal
 import sys
-
+import playercontroller as pc
+import agent as ag
+import traincontroller as tc
 
 
 def get_features():
@@ -32,7 +34,7 @@ def end_loop(iters, g, save):
         g.agent.model.save(save)
 
 def train_loop(g, iters, save=None):
-    g.epsilon = 0.6
+    g.train_controller.epsilon = 0.6
     def save_on_exit(sig, frame):
         end_loop(len(avgs), g, save)
         sys.exit(0)
@@ -41,30 +43,21 @@ def train_loop(g, iters, save=None):
     for i in range(iters):
         print("iter %d" % i)
         g.play_sim_game()
-        if g.epsilon > 0.01:
-            g.epsilon -= 0.0005
+        if g.train_controller.epsilon > 0.01:
+            g.train_controller.epsilon -= 0.0005
 
     end_loop(iters, g, save)
 
 
 def watch(game):
-    g.epsilon = 0
-    g.Train = False
     g.play_sim_game_watched()
 
 def play(game):
-    g.epsilon = 0
-    g.Train = False
-    g.player_controllers[0] = "human"
-    g.play_sim_game(round_outputs=True)
+    g.play_sim_game_watched(verbose=1)
 
-def eval_model(game, iters = 50):
-    game.epsilon = 0
-    game.Train = False    
+def eval_model(game, iters = 50): 
     places_stats = []
     ratios = []
-    for i in range(1,4):
-        g.player_controllers[i] = "rando"
     
     for i in range(iters):
         print("iter %d" % i)
@@ -90,6 +83,33 @@ def eval_model(game, iters = 50):
     print("2nd places: {}".format(np.count_nonzero(places_stats == 1)))
     print("3rd places: {}".format(np.count_nonzero(places_stats == 2)))
     print("4th places: {}".format(np.count_nonzero(places_stats == 3)))
+
+def get_player_controllers(args, agent):
+    pcs = []
+    for i in range(args.players):
+        pcs.append(pc.agent_player_controller(agent))
+    
+    if args.irl_type == 'hvsall':
+        pcs[0] = pc.human_player_controller()
+    elif args.irl_type == 'cvsall':
+        raise Exception("cvsall not implemented")
+    elif args.eval:
+        for i in range(1, args.players):
+            pcs[i] = pc.random_player_controller()
+    
+    return pcs
+
+def get_agent(features, players, args):
+    agent = ag.agent(features, players)
+    if args.load:
+        agent.model = load_model(args.load)
+    return agent
+
+def get_train_controller(agent, args):
+    if args.eval or args.watch or args.irl_type != None:
+        return None
+    return tc.train_controller(agent)
+
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -100,6 +120,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--load', type=str, required=False)
     parser.add_argument('-e', '--eval', action="store_const", const=True, required=False)
     parser.add_argument('--irl_type', type=str, required=False)
+    parser.add_argument('--benchmark', type=str, required=False)
 
 
 
@@ -107,10 +128,12 @@ if __name__ == '__main__':
     players = io_args.players
 
     features = get_features()
-
-    g = Game(players, features)
-    if io_args.load:
-        g.agent.model = load_model(io_args.load)
+    agent = get_agent(features, players, io_args)
+    player_controllers = get_player_controllers(io_args, agent)
+    train_controller = get_train_controller(agent, io_args)
+    g = Game(players, features, player_controllers, train_controller)
+    
+ 
 
     if io_args.irl_type == 'cpuvsall':
         g.start_irl_game()

@@ -13,5 +13,5 @@ class score_features:
         
         return np.array(out)
     
-    def output_size(self, game):
-        return game.players * 2
+    def output_size(self, players):
+        return players * 2
