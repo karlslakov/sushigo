@@ -1,5 +1,4 @@
 import random
-from agent import agent
 import feature_extractors.extractor_helpers as exh
 import numpy as np
 from constants import card_counts, nigiri_scores, maki_counts
@@ -26,7 +25,6 @@ class Game:
         return base_deck.copy()
 
     def init_game(self):
-        print("Starting sim game with players = %d" % self.players)
         self.deck = self.get_base_deck()
         random.shuffle(self.deck)
         self.true_scores = np.zeros(self.players)

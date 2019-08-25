@@ -1,59 +1,32 @@
 from game import Game
 import argparse
-from feature_extractors import ( 
-    player_hand_features,
-    game_metadata_features, 
-    player_selected_features, 
-    strategy_helper_features,
-    discard_features,
-    score_features,
-)
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import load_model
-import signal
-import sys
 import playercontroller as pc
 import agent as ag
 import traincontroller as tc
-
-
-def get_features():
-    return [
-        player_hand_features.player_hand_features(),
-        game_metadata_features.game_metadata_features(),
-        player_selected_features.player_selected_features(),
-        strategy_helper_features.strategy_helper_features(),
-        discard_features.discard_features(),
-        score_features.score_features(),
-    ]
-
-def end_loop(iters, g, save):
-    print("finished model training, saving stats")
-    if save:
-        g.agent.model.save(save)
-
-def train_loop(g, iters, save=None):
-    g.train_controller.epsilon = 0.6
-    def save_on_exit(sig, frame):
-        end_loop(len(avgs), g, save)
-        sys.exit(0)
-    signal.signal(signal.SIGINT, save_on_exit)
-
-    for i in range(iters):
-        print("iter %d" % i)
-        g.play_sim_game()
-        if g.train_controller.epsilon > 0.01:
-            g.train_controller.epsilon -= 0.0005
-
-    end_loop(iters, g, save)
-
+import feature_extractors.extractor_helpers as exh
+import gch
+from keras.optimizers import RMSprop
+from keras.models import Sequential
+from keras.layers import Input
+from keras.layers.core import Dense, Dropout
+from config import all_features
+from training import train_loop
+import eval
 
 def watch(game):
     g.play_sim_game_watched()
 
 def play(game):
     g.play_sim_game_watched(verbose=1)
+
+def calibrate_elo(game, folder, iters=50):
+    input_size = exh.get_input_size( game.feature_extractors, game.players)
+    agents = eval.get_agents(folder, input_size)
+    ratings = eval.calibrate_agent_elo(game, agents)
+    print(ratings)
 
 def eval_model(game, iters = 50): 
     places_stats = []
@@ -93,17 +66,26 @@ def get_player_controllers(args, agent):
         pcs[0] = pc.human_player_controller()
     elif args.irl_type == 'cvsall':
         raise Exception("cvsall not implemented")
-    elif args.eval:
-        for i in range(1, args.players):
-            pcs[i] = pc.random_player_controller()
-    
+            
     return pcs
 
+def create_model(input_size, output_size):
+    model = Sequential()
+    model.add(Dense(output_dim=120, activation='relu', input_dim=input_size))
+    model.add(Dense(output_dim=120, activation='relu'))
+    model.add(Dense(output_dim=120, activation='relu'))
+    model.add(Dense(output_dim=output_size, activation='linear'))
+    opt = RMSprop()
+    model.compile(loss='mse', optimizer=opt)
+    
+    return model
+
 def get_agent(features, players, args):
-    agent = ag.agent(features, players)
-    if args.load:
-        agent.model = load_model(args.load)
+    input_size = exh.get_input_size(features, players)
+    model = load_model(args.load) if args.load else create_model(input_size, gch.output_size)
+    agent = ag.agent(model, input_size)
     return agent
+
 
 def get_train_controller(agent, args):
     if args.eval or args.watch or args.irl_type != None:
@@ -119,21 +101,18 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--save', type=str, required=False)
     parser.add_argument('-l', '--load', type=str, required=False)
     parser.add_argument('-e', '--eval', action="store_const", const=True, required=False)
+    parser.add_argument('--benchmark_folder', type=str, required=False)
     parser.add_argument('--irl_type', type=str, required=False)
     parser.add_argument('--benchmark', type=str, required=False)
-
-
 
     io_args = parser.parse_args()
     players = io_args.players
 
-    features = get_features()
+    features = all_features
     agent = get_agent(features, players, io_args)
     player_controllers = get_player_controllers(io_args, agent)
     train_controller = get_train_controller(agent, io_args)
     g = Game(players, features, player_controllers, train_controller)
-    
- 
 
     if io_args.irl_type == 'cpuvsall':
         g.start_irl_game()
@@ -141,8 +120,8 @@ if __name__ == '__main__':
         play(g)
     elif not io_args.watch:
         if io_args.eval:
-            eval_model(g, io_args.iters)
+            calibrate_elo(g, io_args.benchmark_folder, io_args.iters)
         else:
-            train_loop(g, io_args.iters, io_args.save)
+            train_loop(players, agent, iters=io_args.iters, save=io_args.save, benchmark_folder=io_args.benchmark_folder)
     else:
         watch(g)

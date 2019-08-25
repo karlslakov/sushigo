@@ -1,6 +1,7 @@
 import numpy as np
 import gch
 import random
+from trueskill import Rating
 
 class player_controller:
     def get_output(self, game, player):
@@ -11,10 +12,9 @@ class agent_player_controller(player_controller):
         self.agent = agent
     def get_output(self, game, player):
         if game.train_controller and random.random() < game.train_controller.epsilon:
-            return np.random.rand(self.agent.output_size)
+            return np.random.rand(gch.output_size)
         else:
             return self.agent.predict(game.curr_features[player])
-
 
 class random_player_controller(player_controller):
     def get_output(self, game, player):
@@ -33,3 +33,11 @@ class human_player_controller(player_controller):
                 print("no?")
                 continue
             return np.array(exh.to_onehot_embedding(s))
+
+class ranked_player_controller(player_controller):
+    def __init__(self, pc, rating=Rating()):
+        self.pc = pc
+        self.rating = rating
+    
+    def get_output(self, game, player):
+        return self.pc.get_output(game, player)

@@ -1,38 +1,45 @@
 import math
-from playercontroller import agent_player_controller
+from playercontroller import ranked_player_controller, random_player_controller, agent_player_controller
+import random
+import numpy as np
+import trueskill
+import os
+from agent import agent
+from keras.models import load_model
 
-# use SME from http://www.tckerrigan.com/Misc/Multiplayer_Elo/
 
-def update_agents(game, agent, benchmarks):
-    agent_pc = agent_player_controller(agent)
+def calibrate_agent_elo(game, agents, eval_epochs=100):
+    players = game.players
+
+    agent_controllers = [ranked_player_controller(agent_player_controller(x)) for x in agents]
+    
+    assert len(agent_controllers) >= players
+    assert game.train_controller == None
+
+    for i in range(eval_epochs):
+        game.player_controllers = random.sample(agent_controllers, k=players)
+        game.play_sim_game()
+
+        argsorted = np.argsort(game.true_scores)
+        places = argsorted.tolist()
+        places.reverse()
+
+        teams = [(x.rating,) for x in game.player_controllers]
+        new_ratings = trueskill.rate(teams, places)
+
+        for i in range(players):
+            game.player_controllers[i].rating = new_ratings[i][0]
+        
+    return [(x.pc.agent.name, x.rating.mu, x.rating.sigma) for x in agent_controllers]
+            
+def get_agents(folder, input_size):
+    agents = []
+    for filename in os.listdir(folder):
+        if filename.endswith(".h5"):
+            model = load_model(os.path.join(folder, filename))
+            agents.append(agent(model, input_size, name=filename))
+    return agents
+
+        
 
 
-  
-# from https://www.geeksforgeeks.org/elo-rating-algorithm/
-def get_probability(rating1, rating2): 
-    return 1.0 * 1.0 / (1 + 1.0 * math.pow(10, 1.0 * (rating1 - rating2) / 400)) 
-  
-def update_elo(Ra, Rb, K, d): 
-    # To calculate the Winning 
-    # Probability of Player B 
-    Pb = get_probability(Ra, Rb) 
-  
-    # To calculate the Winning 
-    # Probability of Player A 
-    Pa = get_probability(Rb, Ra) 
-  
-    # Case -1 When Player A wins 
-    # Updating the Elo Ratings 
-    if (d == 1) : 
-        Ra = Ra + K * (1 - Pa) 
-        Rb = Rb + K * (0 - Pb) 
-      
-  
-    # Case -2 When Player B wins 
-    # Updating the Elo Ratings 
-    else : 
-        Ra = Ra + K * (0 - Pa) 
-        Rb = Rb + K * (1 - Pb) 
-
-    return Ra, Rb
-  
