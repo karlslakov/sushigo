@@ -11,7 +11,7 @@ def end_loop(agent, save):
     if save:
         agent.model.save(save)
 
-def train_loop(players, agent, iters=101, save_model_freq=10, benchmark_folder=None, save=None):
+def train_loop(players, agent, iters=101, save_model_freq=100, benchmark_folder=None, save=None):
     tc = train_controller(agent)
     features = all_features
     agent_pc = pc.ranked_player_controller(pc.agent_player_controller(agent))

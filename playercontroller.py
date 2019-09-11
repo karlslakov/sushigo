@@ -4,12 +4,16 @@ import random
 from trueskill import Rating
 
 class player_controller:
+    def __init__(self, name="unamed_pc"):
+        self.name = name
     def get_output(self, game, player):
         raise Exception()
 
 class agent_player_controller(player_controller):
     def __init__(self, agent):
+        super().__init__(agent.name)
         self.agent = agent
+
     def get_output(self, game, player):
         if game.train_controller and random.random() < game.train_controller.epsilon:
             return np.random.rand(gch.output_size)
@@ -17,10 +21,16 @@ class agent_player_controller(player_controller):
             return self.agent.predict(game.curr_features[player])
 
 class random_player_controller(player_controller):
+    def __init__(self, name="unamed_rpc"):
+        super().__init__(name)
+
     def get_output(self, game, player):
         return np.random.rand(gch.output_size)
 
 class human_player_controller(player_controller):
+    def __init__(self, name="unamed_hpc"):
+        super().__init__(name)
+
     def get_output(self, game, player):
         hand = []
         for i in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]:
@@ -36,6 +46,7 @@ class human_player_controller(player_controller):
 
 class ranked_player_controller(player_controller):
     def __init__(self, pc, rating=Rating()):
+        super().__init__(pc.name)
         self.pc = pc
         self.rating = rating
     
