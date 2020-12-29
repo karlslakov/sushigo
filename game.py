@@ -34,9 +34,11 @@ class Game:
         self.selection_ordered = []
         self.in_round_card = 0
         self.round = 0
+        self.total_invalids_taken = []
         for _ in range(self.players):
             self.player_selected.append(np.zeros(exh.onehot_len))
             self.selection_ordered.append([])
+            self.total_invalids_taken.append(0)
 
     def play_sim_game_watched(self, verbose=0):
         self.verbose = verbose
@@ -78,9 +80,7 @@ class Game:
             print(self.true_scores)
        
     def get_output_for_player(self, player):
-        self.unfiltered_outputs[player] = self.player_controllers[player].get_output(self, player)       
-        self.outputs[player] = self.unfiltered_outputs[player].copy()
-        self.outputs[player][self.invalid_outputs[player] == 1] = float("-inf")
+        self.outputs[player] = self.player_controllers[player].get_output(self, player)
     
     def execute_action(self, action, player):
         first = action
@@ -101,9 +101,10 @@ class Game:
         self.deltas = np.zeros(self.players)
         self.actions = []
         self.outputs = []
-        self.unfiltered_outputs = []
+        self.origs = []
         self.temp_scores = np.array(self.true_scores)
         self.invalid_outputs = []
+        self.invalid_taken = []
 
         for i in range(self.players):
             hand = self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz]
@@ -111,9 +112,10 @@ class Game:
         
         for player in range(self.players):
             self.curr_features.append(exh.extract_features(self.feature_extractors, player, self))
-            self.actions.append((0, False, 0))
+            self.actions.append(0)
+            self.origs.append(0)
             self.outputs.append([])
-            self.unfiltered_outputs.append([])
+            self.invalid_taken.append(False)
             self.invalid_outputs.append(gch.get_invalid_outputs(self.curr_round_hands[player], False))
 
     def rotate_player_hands(self):
@@ -145,7 +147,9 @@ class Game:
     
     def prep_player_output_action(self, player):
         self.get_output_for_player(player)
-        self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False)
+        self.actions[player], self.invalid_taken[player], self.origs[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False, False)
+        if self.invalid_taken[player]:
+            self.total_invalids_taken[player] += 1
         self.execute_action(self.actions[player], player)
 
     def end_pick_cleanup_and_train(self):
@@ -155,12 +159,11 @@ class Game:
                 self.temp_scores[player] = self.true_scores[player] + gch.calculate_intermediate_score(self.selection_ordered[player])
                 self.deltas[player] = self.temp_scores[player] - old
         for player in range(self.players):
-            reward = gch.get_reward(self.true_scores, self.temp_scores, self.is_game_over(), player)
             new_features = exh.extract_features(self.feature_extractors, player, self)
             next_invalids = gch.get_invalid_outputs(self.curr_round_hands[player], False)
 
-            if self.train_controller:
-                self.train_controller.train(self, player, reward, new_features, next_invalids)
+            if self.train_controller and self.player_controllers[player].is_trainable():
+                self.train_controller.register_turn(self, player, self.invalid_taken[player])
             
             self.curr_features[player] = new_features
             self.invalid_outputs[player] = next_invalids
@@ -193,7 +196,7 @@ class Game:
                 
                 if self.verbose == 0:
                     print(self.curr_features[player])
-                    print(self.unfiltered_outputs[player])
+                    print(self.outputs[player])
                 
                 print("action: {}".format(exh.to_card(self.actions[player])))
                 self.watch_wait()
@@ -218,7 +221,6 @@ class Game:
         self.curr_round_hands = []
         self.curr_features = [0]
         self.outputs = [0]
-        self.unfiltered_outputs = [0]
         self.invalid_outputs = [0]
         for p in range(self.players):
             self.curr_round_hands.append(np.zeros(gch.onehot_len))

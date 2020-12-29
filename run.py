@@ -8,43 +8,63 @@ from feature_extractors import (
     discard_features,
     score_features,
 )
-import matplotlib.pyplot as plt
 import numpy as np
-from keras.models import load_model
 import signal
 import sys
 import playercontroller as pc
 import agent as ag
 import traincontroller as tc
+import torch
+from torch.utils.tensorboard import SummaryWriter
 
 
 def get_features():
     return [
         player_hand_features.player_hand_features(),
-        game_metadata_features.game_metadata_features(),
-        player_selected_features.player_selected_features(),
-        strategy_helper_features.strategy_helper_features(),
-        discard_features.discard_features(),
-        score_features.score_features(),
+        # game_metadata_features.game_metadata_features(),
+        # player_selected_features.player_selected_features(),
+        # strategy_helper_features.strategy_helper_features(),
+        # discard_features.discard_features(),
+        # score_features.score_features(),
     ]
 
 def end_loop(iters, g, save):
     print("finished model training, saving stats")
-    if save:
-        g.agent.model.save(save)
+    if save and g.train_controller:
+        torch.save(g.train_controller.agent.model, save)
 
 def train_loop(g, iters, save=None):
-    g.train_controller.epsilon = 0.6
     def save_on_exit(sig, frame):
-        end_loop(len(avgs), g, save)
+        end_loop(iters, g, save)
         sys.exit(0)
     signal.signal(signal.SIGINT, save_on_exit)
+    torch.autograd.set_detect_anomaly(True)
+    writer = SummaryWriter('runs/hand_only_long')
 
+    moving_avg_ratios = []
+    moving_avg_places = []
+    moving_avg_invalids = []
     for i in range(iters):
         print("iter %d" % i)
         g.play_sim_game()
-        if g.train_controller.epsilon > 0.01:
-            g.train_controller.epsilon -= 0.0005
+
+        ratio = g.true_scores[0] / sum(g.true_scores)
+        print(ratio)
+        argsorted = np.argsort(g.true_scores)
+        places = argsorted.tolist()
+        places.reverse()
+        place = places.index(0)
+
+        moving_avg_ratios.append(ratio)
+        moving_avg_places.append(place)
+        moving_avg_invalids.append(g.total_invalids_taken[0])
+        if len(moving_avg_ratios) > 5:
+            moving_avg_ratios.pop(0)
+            moving_avg_places.pop(0)
+            moving_avg_invalids.pop(0)
+        writer.add_scalar('Hist/MovAvgRatio', np.array(moving_avg_ratios).mean(), i)
+        writer.add_scalar('Hist/MovAvgPlace', np.array(moving_avg_places).mean(), i)
+        writer.add_scalar('Hist/MovAvgInvalids', np.array(moving_avg_invalids).mean(), i)
 
     end_loop(iters, g, save)
 
@@ -87,7 +107,8 @@ def eval_model(game, iters = 50):
 def get_player_controllers(args, agent):
     pcs = []
     for i in range(args.players):
-        pcs.append(pc.agent_player_controller(agent))
+        pcs.append(pc.random_player_controller())
+    pcs[0] = pc.agent_player_controller(agent)
     
     if args.irl_type == 'hvsall':
         pcs[0] = pc.human_player_controller()
@@ -100,9 +121,7 @@ def get_player_controllers(args, agent):
     return pcs
 
 def get_agent(features, players, args):
-    agent = ag.agent(features, players)
-    if args.load:
-        agent.model = load_model(args.load)
+    agent = ag.agent(features, players, args.load)
     return agent
 
 def get_train_controller(agent, args):

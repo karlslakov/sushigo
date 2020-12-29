@@ -1,6 +1,7 @@
 import numpy as np
 from constants import maki_counts, nigiri_scores, dumping_scores
 from feature_extractors.extractor_helpers import onehot_len, to_int
+import torch
 
 output_size = onehot_len # int(onehot_len + onehot_len * (onehot_len + 1) / 2)
 
@@ -13,9 +14,23 @@ def remove_invalid_outputs(output, chand, has_chopsticks):
     output[get_invalid_outputs(chand, has_chopsticks) == 1] = float('-inf')
     return output
 
-def parse_output(output, chand, selected):
-    index = np.argmax(output)
-    return get_action(index)
+def parse_output(output, chand, selected, has_chopsticks):
+    invalids = get_invalid_outputs(chand, has_chopsticks)
+    with torch.no_grad():
+        probs = torch.exp(output).detach().numpy()
+        # probs[invalids == 1] = 0
+        # probs[invalids == 0] += 0.01
+        # probs /= probs.sum()
+        avg_invalid_
+        command = np.random.choice(range(len(probs)), p=probs)
+        orig = command
+        is_invalid = False
+        if invalids[command] == 1:
+            is_invalid = True
+            rand_select = np.random.rand(onehot_len)
+            rand_select[invalids == 1] = float('-inf')
+            command = np.argmax(rand_select)
+        return command, is_invalid, orig
 
 def get_action(index):
     return index
