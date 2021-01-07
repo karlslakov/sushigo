@@ -21,7 +21,7 @@ def parse_output(output, chand, selected, has_chopsticks):
         # probs[invalids == 1] = 0
         # probs[invalids == 0] += 0.01
         # probs /= probs.sum()
-        avg_invalid_
+        avg_invalid_prob = probs[invalids == 1].mean()
         command = np.random.choice(range(len(probs)), p=probs)
         orig = command
         is_invalid = False

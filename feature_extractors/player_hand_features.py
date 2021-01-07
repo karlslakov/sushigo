@@ -7,12 +7,15 @@ class player_hand_features:
         cplayer = player
         out = []
         for p in range(game.players):
-            if p <= game.in_round_card:
-                out.append(game.curr_round_hands[cplayer])
-            else:
-                out.append(np.zeros(exh.onehot_len))
+            # if p <= game.in_round_card:
+            x = game.curr_round_hands[cplayer]
+            # out.append(x)
+            out.append(x > 0)
+            
+            # else:
+            #    out.append(np.zeros(exh.onehot_len))
             cplayer = gch.get_next_player(cplayer, game)
         return np.array(out)
     
     def output_size(self, players):
-        return players * exh.onehot_len
+        return players * exh.onehot_len # * 2

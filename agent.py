@@ -12,6 +12,7 @@ class agent:
         self.players = players
         self.input_size = exh.get_input_size(feature_extractors, players) 
         self.log_likelyhoods = []
+        self.ll_invalids = []
         self.rewards = []
         self.output_size = gch.output_size
 
@@ -28,24 +29,40 @@ class agent:
     def run(self, features):
         return self.model(torch.tensor(features, dtype=torch.float).to('cuda')).cpu()
 
-    def remember(self, ll, r):
-        self.log_likelyhoods.append(ll)
-        self.rewards.append(r)
+    def remember(self, ll, r, channel):
+        while len(self.log_likelyhoods) <= channel:
+            self.log_likelyhoods.append([])
+            self.rewards.append([])
+            
+        self.log_likelyhoods[channel].append(ll)
+        self.rewards[channel].append(r)
+
+    def remember_invalids(self, lls, invalids):
+        for i in range(len(lls)):
+            if invalids[i] == 1:
+                self.ll_invalids.append(lls[i])
+                return
 
     def step_train(self, train_controller):
-        lls = torch.vstack(self.log_likelyhoods)
-        r = train_controller.propogate_reward(self.rewards)
+        lls_pre = []
+        r_pre = []
+        for i in range(len(self.log_likelyhoods)):
+            lls_pre.append(torch.vstack(self.log_likelyhoods[i]))
+            r_pre.extend(train_controller.propogate_reward(self.rewards[i]))
 
-        # print(r.mean())
-        r -= r.mean()
-        
-        if r.std().item() != 0:
-            r /= r.std()
-        
-        
-        # print (lls)
+        lls_pre.append(torch.vstack(self.ll_invalids))
+        r_pre.extend([torch.tensor(-2)] * len(self.ll_invalids))
+
+        # print(r_pre)
+        lls = torch.vstack(lls_pre)
+        r = torch.vstack(r_pre)
+
         # print(r)
-        # print(r.unsqueeze(1) * lls)
+        # r -= r.mean()
+        
+        # if r.std().item() != 0:
+            # r /= r.std()
+        # print(r)
 
         loss = -(r.unsqueeze(1) * lls).sum()
         loss.backward()
@@ -54,3 +71,4 @@ class agent:
 
         self.log_likelyhoods = []
         self.rewards = []
+        self.ll_invalids = []

@@ -81,6 +81,7 @@ class Game:
        
     def get_output_for_player(self, player):
         self.outputs[player] = self.player_controllers[player].get_output(self, player)
+
     
     def execute_action(self, action, player):
         first = action
@@ -150,6 +151,7 @@ class Game:
         self.actions[player], self.invalid_taken[player], self.origs[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False, False)
         if self.invalid_taken[player]:
             self.total_invalids_taken[player] += 1
+        
         self.execute_action(self.actions[player], player)
 
     def end_pick_cleanup_and_train(self):
@@ -163,7 +165,7 @@ class Game:
             next_invalids = gch.get_invalid_outputs(self.curr_round_hands[player], False)
 
             if self.train_controller and self.player_controllers[player].is_trainable():
-                self.train_controller.register_turn(self, player, self.invalid_taken[player])
+                self.train_controller.register_turn(self, player, self.invalid_outputs[player])
             
             self.curr_features[player] = new_features
             self.invalid_outputs[player] = next_invalids

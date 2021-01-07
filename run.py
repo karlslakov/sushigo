@@ -39,31 +39,31 @@ def train_loop(g, iters, save=None):
         sys.exit(0)
     signal.signal(signal.SIGINT, save_on_exit)
     torch.autograd.set_detect_anomaly(True)
-    writer = SummaryWriter('runs/hand_only_long')
+    writer = SummaryWriter('runs/test2')
 
-    moving_avg_ratios = []
-    moving_avg_places = []
+    # moving_avg_ratios = []
+    # moving_avg_places = []
     moving_avg_invalids = []
     for i in range(iters):
         print("iter %d" % i)
         g.play_sim_game()
 
-        ratio = g.true_scores[0] / sum(g.true_scores)
-        print(ratio)
-        argsorted = np.argsort(g.true_scores)
-        places = argsorted.tolist()
-        places.reverse()
-        place = places.index(0)
+        # ratio = g.true_scores[0] / sum(g.true_scores)
+        # print(ratio)
+        # argsorted = np.argsort(g.true_scores)
+        # places = argsorted.tolist()
+        # places.reverse()
+        # place = places.index(0)
 
-        moving_avg_ratios.append(ratio)
-        moving_avg_places.append(place)
-        moving_avg_invalids.append(g.total_invalids_taken[0])
-        if len(moving_avg_ratios) > 5:
-            moving_avg_ratios.pop(0)
-            moving_avg_places.pop(0)
+        # moving_avg_ratios.append(ratio)
+        # moving_avg_places.append(place)
+        moving_avg_invalids.append(np.array(g.total_invalids_taken).mean())
+        if len(moving_avg_invalids) > 5:
+            # moving_avg_ratios.pop(0)
+            # moving_avg_places.pop(0)
             moving_avg_invalids.pop(0)
-        writer.add_scalar('Hist/MovAvgRatio', np.array(moving_avg_ratios).mean(), i)
-        writer.add_scalar('Hist/MovAvgPlace', np.array(moving_avg_places).mean(), i)
+        # writer.add_scalar('Hist/MovAvgRatio', np.array(moving_avg_ratios).mean(), i)
+        # writer.add_scalar('Hist/MovAvgPlace', np.array(moving_avg_places).mean(), i)
         writer.add_scalar('Hist/MovAvgInvalids', np.array(moving_avg_invalids).mean(), i)
 
     end_loop(iters, g, save)
@@ -107,8 +107,9 @@ def eval_model(game, iters = 50):
 def get_player_controllers(args, agent):
     pcs = []
     for i in range(args.players):
-        pcs.append(pc.random_player_controller())
-    pcs[0] = pc.agent_player_controller(agent)
+        #pcs.append(pc.random_player_controller())
+        pcs.append(pc.agent_player_controller(agent))
+    #pcs[0] = pc.agent_player_controller(agent)
     
     if args.irl_type == 'hvsall':
         pcs[0] = pc.human_player_controller()
