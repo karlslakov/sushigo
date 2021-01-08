@@ -26,22 +26,18 @@ class agent:
         model = PGModel(self.input_size, self.output_size).to('cuda')
         return model
 
-    def run(self, features):
-        return self.model(torch.tensor(features, dtype=torch.float).to('cuda')).cpu()
+    def run(self, features, invalids):
+        return self.model(torch.tensor(features, dtype=torch.float).to('cuda'),
+            torch.tensor(1 - invalids, dtype=torch.bool).to('cuda')).cpu()
 
     def remember(self, ll, r, channel):
         while len(self.log_likelyhoods) <= channel:
             self.log_likelyhoods.append([])
             self.rewards.append([])
             
+        # print(r)
         self.log_likelyhoods[channel].append(ll)
         self.rewards[channel].append(r)
-
-    def remember_invalids(self, lls, invalids):
-        for i in range(len(lls)):
-            if invalids[i] == 1:
-                self.ll_invalids.append(lls[i])
-                return
 
     def step_train(self, train_controller):
         lls_pre = []
@@ -50,21 +46,18 @@ class agent:
             lls_pre.append(torch.vstack(self.log_likelyhoods[i]))
             r_pre.extend(train_controller.propogate_reward(self.rewards[i]))
 
-        lls_pre.append(torch.vstack(self.ll_invalids))
-        r_pre.extend([torch.tensor(-2)] * len(self.ll_invalids))
-
         # print(r_pre)
         lls = torch.vstack(lls_pre)
         r = torch.vstack(r_pre)
 
         # print(r)
-        # r -= r.mean()
+        r -= r.mean()
         
-        # if r.std().item() != 0:
-            # r /= r.std()
+        if r.std().item() != 0:
+            r /= r.std()
         # print(r)
 
-        loss = -(r.unsqueeze(1) * lls).sum()
+        loss = -(r.unsqueeze(1) * lls).mean()
         loss.backward()
         self.opt.step()
         self.opt.zero_grad()

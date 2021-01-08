@@ -9,7 +9,7 @@ class player_hand_features:
         for p in range(game.players):
             # if p <= game.in_round_card:
             x = game.curr_round_hands[cplayer]
-            # out.append(x)
+            out.append(x)
             out.append(x > 0)
             
             # else:
@@ -18,4 +18,4 @@ class player_hand_features:
         return np.array(out)
     
     def output_size(self, players):
-        return players * exh.onehot_len # * 2
+        return players * exh.onehot_len * 2

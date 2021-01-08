@@ -14,14 +14,14 @@ class agent_player_controller(player_controller):
     def __init__(self, agent):
         self.agent = agent
     def get_output(self, game, player):
-        return self.agent.run(game.curr_features[player])
+        return self.agent.run(game.curr_features[player], game.invalid_outputs[player])
     def is_trainable(self):
         return True
 
 
 class random_player_controller(player_controller):
     def get_output(self, game, player):
-        return torch.log_softmax(torch.rand(gch.output_size), dim=0)
+        return torch.log_softmax(torch.rand(np.count_nonzero(game.invalid_outputs[player] != 1)), dim=0)
 
 class human_player_controller(player_controller):
     def get_output(self, game, player):
@@ -35,4 +35,5 @@ class human_player_controller(player_controller):
             if s not in card_counts or self.curr_round_hands[player][exh.to_int(s)] <= 0:
                 print("no?")
                 continue
+            # this is wrong--- fix
             return torch.log_softmax(torch.tesnor(exh.to_onehot_embedding(s)), dim=0)

@@ -34,11 +34,9 @@ class Game:
         self.selection_ordered = []
         self.in_round_card = 0
         self.round = 0
-        self.total_invalids_taken = []
         for _ in range(self.players):
             self.player_selected.append(np.zeros(exh.onehot_len))
             self.selection_ordered.append([])
-            self.total_invalids_taken.append(0)
 
     def play_sim_game_watched(self, verbose=0):
         self.verbose = verbose
@@ -105,7 +103,6 @@ class Game:
         self.origs = []
         self.temp_scores = np.array(self.true_scores)
         self.invalid_outputs = []
-        self.invalid_taken = []
 
         for i in range(self.players):
             hand = self.deck[(offset + i) * self.shz : (offset + i + 1) * self.shz]
@@ -116,7 +113,7 @@ class Game:
             self.actions.append(0)
             self.origs.append(0)
             self.outputs.append([])
-            self.invalid_taken.append(False)
+            
             self.invalid_outputs.append(gch.get_invalid_outputs(self.curr_round_hands[player], False))
 
     def rotate_player_hands(self):
@@ -148,9 +145,7 @@ class Game:
     
     def prep_player_output_action(self, player):
         self.get_output_for_player(player)
-        self.actions[player], self.invalid_taken[player], self.origs[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False, False)
-        if self.invalid_taken[player]:
-            self.total_invalids_taken[player] += 1
+        self.actions[player] = gch.parse_output(self.outputs[player], self.curr_round_hands[player], False, False)
         
         self.execute_action(self.actions[player], player)
 
@@ -165,7 +160,7 @@ class Game:
             next_invalids = gch.get_invalid_outputs(self.curr_round_hands[player], False)
 
             if self.train_controller and self.player_controllers[player].is_trainable():
-                self.train_controller.register_turn(self, player, self.invalid_outputs[player])
+                self.train_controller.register_turn(self, player)
             
             self.curr_features[player] = new_features
             self.invalid_outputs[player] = next_invalids

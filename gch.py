@@ -18,19 +18,9 @@ def parse_output(output, chand, selected, has_chopsticks):
     invalids = get_invalid_outputs(chand, has_chopsticks)
     with torch.no_grad():
         probs = torch.exp(output).detach().numpy()
-        # probs[invalids == 1] = 0
-        # probs[invalids == 0] += 0.01
-        # probs /= probs.sum()
-        avg_invalid_prob = probs[invalids == 1].mean()
-        command = np.random.choice(range(len(probs)), p=probs)
-        orig = command
-        is_invalid = False
-        if invalids[command] == 1:
-            is_invalid = True
-            rand_select = np.random.rand(onehot_len)
-            rand_select[invalids == 1] = float('-inf')
-            command = np.argmax(rand_select)
-        return command, is_invalid, orig
+        options = np.arange(output_size)[invalids != 1]        
+        command = np.random.choice(options, p=probs)
+        return command
 
 def get_action(index):
     return index
