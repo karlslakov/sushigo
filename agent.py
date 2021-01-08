@@ -51,10 +51,10 @@ class agent:
         r = torch.vstack(r_pre)
 
         # print(r)
-        r -= r.mean()
+        # r -= r.mean()
         
-        if r.std().item() != 0:
-            r /= r.std()
+        #if r.std().item() != 0:
+            # r /= r.std()
         # print(r)
 
         loss = -(r.unsqueeze(1) * lls).mean()

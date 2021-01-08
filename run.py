@@ -64,6 +64,7 @@ def train_loop(g, iters, save=None):
 
 
 def watch(game):
+    np.set_printoptions(precision=2)
     g.play_sim_game_watched()
 
 def play(game):

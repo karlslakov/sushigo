@@ -132,8 +132,8 @@ class Game:
     def update_true_scores(self):
         if self.is_round_over():
             scores = gch.calculate_final_score(self.selection_ordered, self.is_game_over())
-            self.deltas = scores
             self.true_scores += scores 
+            self.deltas = self.true_scores - self.temp_scores
             self.temp_scores = self.true_scores
 
     def clear_selected(self):
@@ -193,7 +193,7 @@ class Game:
                 
                 if self.verbose == 0:
                     print(self.curr_features[player])
-                    print(self.outputs[player])
+                    print(np.round_(np.exp(self.outputs[player].detach().numpy()), decimals=2))
                 
                 print("action: {}".format(exh.to_card(self.actions[player])))
                 self.watch_wait()
