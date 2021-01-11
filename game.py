@@ -4,6 +4,7 @@ import feature_extractors.extractor_helpers as exh
 import numpy as np
 from constants import card_counts, nigiri_scores, maki_counts
 import gch 
+import torch
 
 base_deck = []
 
@@ -77,8 +78,12 @@ class Game:
         if round_outputs:
             print(self.true_scores)
        
-    def get_output_for_player(self, player):
+    def get_output_for_player(self, player):        
         self.outputs[player] = self.player_controllers[player].get_output(self, player)
+        # for p in range(self.players):
+            # if p != player:
+            #    test_out = self.player_controllers[p].get_output(self, player)
+            #    print(torch.all(test_out.eq(self.outputs[player])).item())
 
     
     def execute_action(self, action, player):
@@ -186,13 +191,16 @@ class Game:
             for player in range(self.players):
                 print("player {}".format(player))
                 if self.verbose == 0:
-                    hand = [exh.to_card(x) for x in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]]
+                    hand = []
+                    for i in np.arange(gch.onehot_len)[self.curr_round_hands[player] != 0]:
+                        hand.append([exh.to_card(i)] * int(self.curr_round_hands[player][i]))
                     print("player {} sees {}".format(player, hand))
                     print("player {} has {}".format(player, self.selection_ordered[player]))
                 self.prep_player_output_action(player)
                 
                 if self.verbose == 0:
                     print(self.curr_features[player])
+                    #print(np.round_(self.outputs[player].detach().numpy(), decimals=2))
                     print(np.round_(np.exp(self.outputs[player].detach().numpy()), decimals=2))
                 
                 print("action: {}".format(exh.to_card(self.actions[player])))

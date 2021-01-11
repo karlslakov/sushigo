@@ -42,6 +42,7 @@ class agent:
     def step_train(self, train_controller):
         lls_pre = []
         r_pre = []
+        # print(self.rewards)
         for i in range(len(self.log_likelyhoods)):
             lls_pre.append(torch.vstack(self.log_likelyhoods[i]))
             r_pre.extend(train_controller.propogate_reward(self.rewards[i]))

@@ -6,14 +6,20 @@ class PGModel(nn.Module):
     def __init__(self, inputs, outputs):
         super(PGModel, self).__init__()
         
-        # self.net = nn.Sequential(
-            # nn.Linear(inputs, 100),
-            # nn.ReLU(),
-            # nn.Linear(100, 100),
-            # nn.ReLU(),
-            # nn.Linear(100, outputs),
-            # )
-        self.net = nn.Linear(inputs, outputs)
+        hidden_layer_size = inputs // 2
+
+        self.net = nn.Sequential(
+            nn.Linear(inputs, hidden_layer_size),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_layer_size, hidden_layer_size),
+            nn.LeakyReLU(),
+            # nn.Linear(hidden_layer_size, hidden_layer_size),
+            # nn.LeakyReLU(),
+            # nn.Linear(15, 15),
+            # nn.LeakyReLU(),
+            nn.Linear(hidden_layer_size, outputs)
+            )
+        # self.net = nn.Linear(inputs, outputs)
 
         self.softmax = nn.LogSoftmax(dim = 0)
         

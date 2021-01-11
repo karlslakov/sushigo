@@ -16,7 +16,7 @@ class train_controller:
             places = argsorted.tolist()
             place = places.index(player)
             #print(game.true_scores)
-            reward = place - 1.5
+            reward = place - (game.players - 1) * 0.5
             #print(player, reward)
         else:
             reward = 0
@@ -42,6 +42,6 @@ class train_controller:
         for t in reversed(range(0, len(rewards))):
             if rewards[t] != 0:
                 cumsum = 0
-            cumsum = cumsum * 0.8 + rewards[t]
+            cumsum = cumsum * 1 + rewards[t]
             out[t] = cumsum
         return out

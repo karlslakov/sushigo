@@ -16,16 +16,17 @@ import agent as ag
 import traincontroller as tc
 import torch
 from torch.utils.tensorboard import SummaryWriter
+import copy
 
 
 def get_features():
     return [
         player_hand_features.player_hand_features(),
-        # game_metadata_features.game_metadata_features(),
+        game_metadata_features.game_metadata_features(),
         player_selected_features.player_selected_features(),
         strategy_helper_features.strategy_helper_features(),
         # discard_features.discard_features(),
-        # score_features.score_features(),
+        score_features.score_features(),
     ]
 
 def end_loop(iters, g, save):
@@ -41,13 +42,26 @@ def train_loop(g, iters, save=None):
     torch.autograd.set_detect_anomaly(True)
     writer = SummaryWriter(comment="train_v_rands")
 
+    MODEL_CHECKPOINT_DIR = "model_checkpoints/"
+
+
     
+
+    def checkpoint(iter):
+        path = "%s_model%d" % (MODEL_CHECKPOINT_DIR, iter)
+        torch.save(g.train_controller.agent.model, path)
+        for i in range(1, g.players):
+            if isinstance(g.player_controllers[i], pc.agent_player_controller):
+                g.player_controllers[i].agent.model = copy.deepcopy(g.train_controller.agent.model)
+
     for i in range(iters):
+        if i % 250 == 0:
+            checkpoint(i)
+            # pass
         print("iter %d" % i)
         g.play_sim_game()
 
         ratio = g.true_scores[0] / sum(g.true_scores)
-        # print(ratio)
         argsorted = np.argsort(g.true_scores)
         places = argsorted.tolist()
         places.reverse()
@@ -56,8 +70,17 @@ def train_loop(g, iters, save=None):
         writer.add_scalar("Stats/MeanScore", avg_score, i)
         writer.add_scalar("Stats/Ratio", ratio, i)
         writer.add_scalar("Stats/Place", place, i)
-        # writer.add_scalar('Hist/MovAvgRatio', np.array(moving_avg_ratios).mean(), i)
-        # writer.add_scalar('Hist/MovAvgPlace', np.array(moving_avg_places).mean(), i)
+
+        
+        # for name, param in g.player_controllers[1].agent.model.named_parameters():
+            # y = param.data
+            # break
+        #for name, param in g.player_controllers[1].agent.model.named_parameters():
+         #   x = param.data
+          #  break
+        
+        #print(torch.all(torch.eq(x,y)))
+        
         
 
     end_loop(iters, g, save)
@@ -68,7 +91,7 @@ def watch(game):
     g.play_sim_game_watched()
 
 def play(game):
-    g.play_sim_game_watched(verbose=1)
+    g.play_sim_game_watched(verbose=0)
 
 def eval_model(game, iters = 50): 
     places_stats = []
@@ -102,8 +125,8 @@ def eval_model(game, iters = 50):
 def get_player_controllers(args, agent):
     pcs = []
     for i in range(args.players):
-        pcs.append(pc.random_player_controller())
-        # pcs.append(pc.agent_player_controller(agent))
+        # pcs.append(pc.random_player_controller())
+        pcs.append(pc.agent_player_controller(copy.deepcopy(agent), trainable=(i == 0)))
     pcs[0] = pc.agent_player_controller(agent)
     
     if args.irl_type == 'hvsall':
@@ -136,7 +159,6 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--eval', action="store_const", const=True, required=False)
     parser.add_argument('--irl_type', type=str, required=False)
     parser.add_argument('--benchmark', type=str, required=False)
-
 
 
     io_args = parser.parse_args()

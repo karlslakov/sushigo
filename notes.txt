@@ -1,0 +1,2 @@
+from baseline
+remove hand "binary" features down to 0.5 place
